@@ -40,12 +40,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	copiedInVal := reflect.New(indirectInVal.Type())
 	copiedInVal.Elem().Set(indirectInVal)
 
-	var sendCount int32
+	var sent int32
 	send := func(out interface{}, header http.Header, code int) {
-		if sendCount > 0 {
+		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic("already sent")
 		}
-		atomic.AddInt32(&sendCount, 1)
 		data, err := json.Marshal(out)
 		if err != nil {
 			h.Logger.Errorf("unable to marshal response body to json: %w", err)
