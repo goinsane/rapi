@@ -17,7 +17,6 @@ type SendFunc func(out interface{}, header http.Header, code int)
 
 type Handler struct {
 	Logger             *logng.Logger
-	LoggerVerbosity    logng.Verbose
 	In                 interface{}
 	Do                 DoFunc
 	MaxRequestBodySize int64
@@ -49,7 +48,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		data, err := json.Marshal(out)
 		if err != nil {
-			h.Logger.V(h.LoggerVerbosity).Errorf("unable to marshal response body to json: %w", err)
+			h.Logger.Errorf("unable to marshal response body to json: %w", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -62,7 +61,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(code)
 		_, err = io.Copy(w, bytes.NewBuffer(data))
 		if err != nil {
-			h.Logger.V(h.LoggerVerbosity).Errorf("unable to write data: %w", err)
+			h.Logger.Errorf("unable to write data: %w", err)
 			return
 		}
 	}
@@ -73,14 +72,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		h.Logger.V(h.LoggerVerbosity).Errorf("unable to read request body: %w", err)
+		h.Logger.Errorf("unable to read request body: %w", err)
 		send(&ErrorResponse{Error: "unable to read request body"}, nil, http.StatusBadRequest)
 		return
 	}
 
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
-		h.Logger.V(h.LoggerVerbosity).Errorf("unable to unmarshal request body from json: %w", err)
+		h.Logger.Errorf("unable to unmarshal request body from json: %w", err)
 		send(&ErrorResponse{Error: "unable to unmarshal request body from json"}, nil, http.StatusBadRequest)
 		return
 	}
