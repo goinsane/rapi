@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/goinsane/logng"
 )
@@ -39,7 +40,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	copiedInVal := reflect.New(indirectInVal.Type())
 	copiedInVal.Elem().Set(indirectInVal)
 
+	var sendCount int32
 	send := func(out interface{}, header http.Header, code int) {
+		if sendCount > 0 {
+			panic("already sent")
+		}
+		atomic.AddInt32(&sendCount, 1)
 		data, err := json.Marshal(out)
 		if err != nil {
 			h.Logger.Errorf("unable to marshal response body to json: %w", err)
