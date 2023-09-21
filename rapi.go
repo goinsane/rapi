@@ -16,10 +16,11 @@ type DoFunc func(in interface{}, header http.Header, send SendFunc)
 type SendFunc func(out interface{}, header http.Header, code int)
 
 type Handler struct {
-	Logger          *logng.Logger
-	LoggerVerbosity logng.Verbose
-	In              interface{}
-	Do              DoFunc
+	Logger             *logng.Logger
+	LoggerVerbosity    logng.Verbose
+	In                 interface{}
+	Do                 DoFunc
+	MaxRequestBodySize int64
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +67,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data, err := io.ReadAll(r.Body)
+	var rd io.Reader = r.Body
+	if h.MaxRequestBodySize > 0 {
+		rd = io.LimitReader(r.Body, h.MaxRequestBodySize)
+	}
+	data, err := io.ReadAll(rd)
 	if err != nil {
 		h.Logger.V(h.LoggerVerbosity).Errorf("unable to read request body: %w", err)
 		send(&ErrorResponse{Error: "unable to read request body"}, nil, http.StatusBadRequest)
