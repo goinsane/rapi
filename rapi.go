@@ -63,14 +63,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.Logger.Errorf("unable to read request body: %w", err)
-		send(&errorResponse{Error: "unable to read request body"}, nil, http.StatusBadRequest)
+		send(&ErrorResponse{Error: "unable to read request body"}, nil, http.StatusBadRequest)
 		return
 	}
 
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
 		h.Logger.Errorf("unable to unmarshal request body from json: %w", err)
-		send(&errorResponse{Error: "unable to unmarshal request body from json"}, nil, http.StatusBadRequest)
+		send(&ErrorResponse{Error: "unable to unmarshal request body from json"}, nil, http.StatusBadRequest)
 		return
 	}
 

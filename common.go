@@ -1,5 +1,5 @@
 package rapi
 
-type errorResponse struct {
+type ErrorResponse struct {
 	Error string `json:"error"`
 }
