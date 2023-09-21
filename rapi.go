@@ -11,8 +11,8 @@ import (
 	"github.com/goinsane/logng"
 )
 
-type DoFunc func(in interface{}, send SendFunc)
-type SendFunc func(out interface{}, code int)
+type DoFunc func(in interface{}, header http.Header, send SendFunc)
+type SendFunc func(out interface{}, header http.Header, code int)
 
 type Handler struct {
 	Logger *logng.Logger
@@ -39,7 +39,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	copiedInVal := reflect.New(indirectInVal.Type())
 	copiedInVal.Elem().Set(indirectInVal)
 
-	send := func(out interface{}, code int) {
+	send := func(out interface{}, header http.Header, code int) {
 		data, err := json.Marshal(out)
 		if err != nil {
 			h.Logger.Errorf("unable to marshal response body to json: %w", err)
@@ -47,6 +47,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data = append(data, '\n')
+		for key, val := range header {
+			w.Header()[key] = val
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 		w.WriteHeader(code)
@@ -60,14 +63,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.Logger.Errorf("unable to read request body: %w", err)
-		send(&errorResponse{Error: "unable to read request body"}, http.StatusBadRequest)
+		send(&errorResponse{Error: "unable to read request body"}, nil, http.StatusBadRequest)
 		return
 	}
 
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
 		h.Logger.Errorf("unable to unmarshal request body from json: %w", err)
-		send(&errorResponse{Error: "unable to unmarshal request body from json"}, http.StatusBadRequest)
+		send(&errorResponse{Error: "unable to unmarshal request body from json"}, nil, http.StatusBadRequest)
 		return
 	}
 
@@ -78,5 +81,5 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		in = copiedInVal.Interface()
 	}
 
-	h.Do(in, send)
+	h.Do(in, r.Header.Clone(), send)
 }
