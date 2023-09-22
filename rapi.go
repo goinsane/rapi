@@ -35,8 +35,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		indirectInVal = inVal.Elem()
 	}
-	if indirectInVal.Kind() != reflect.Struct {
-		panic("input must be struct or struct pointer")
+	switch indirectInVal.Kind() {
+	case reflect.Slice, reflect.Map:
+		isInValPtr = false
 	}
 	copiedInVal := reflect.New(indirectInVal.Type())
 	copiedInVal.Elem().Set(indirectInVal)
