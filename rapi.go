@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/goinsane/logng"
@@ -15,12 +17,54 @@ type SendFunc func(out interface{}, header http.Header, code int)
 
 type Handler struct {
 	Logger             *logng.Logger
-	In                 interface{}
-	Do                 DoFunc
 	MaxRequestBodySize int64
+
+	handlersMu sync.RWMutex
+	handlers   map[string]*_PureHandler
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger := h.Logger.WithPrefixf("%s: ", r.Method)
+
+	h.handlersMu.RLock()
+	ph := h.handlers[r.Method]
+	h.handlersMu.RUnlock()
+	if ph == nil {
+		sendResponse(logger, w, http.StatusText(http.StatusMethodNotAllowed), nil, http.StatusMethodNotAllowed)
+		return
+	}
+
+	ph.ServeHTTP(w, r)
+}
+
+func (h *Handler) Register(method string, in interface{}, do DoFunc) {
+	method = strings.ToUpper(method)
+	h.handlersMu.Lock()
+	defer h.handlersMu.Unlock()
+	if h.handlers == nil {
+		h.handlers = make(map[string]*_PureHandler)
+	}
+	ph := h.handlers[method]
+	if ph != nil {
+		panic("method already registered")
+	}
+	ph = &_PureHandler{
+		Handler: h,
+		In:      in,
+		Do:      do,
+	}
+	h.handlers[method] = ph
+}
+
+type _PureHandler struct {
+	Handler *Handler
+	In      interface{}
+	Do      DoFunc
+}
+
+func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logger := h.Handler.Logger.WithPrefixf("%s: ", r.Method)
+
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(r.Body)
@@ -45,22 +89,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic("already sent")
 		}
-		sendResponse(h, w, out, header, code)
+		sendResponse(logger, w, out, header, code)
 	}
 
 	var rd io.Reader = r.Body
-	if h.MaxRequestBodySize > 0 {
-		rd = io.LimitReader(r.Body, h.MaxRequestBodySize)
+	if h.Handler.MaxRequestBodySize > 0 {
+		rd = io.LimitReader(r.Body, h.Handler.MaxRequestBodySize)
 	}
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		h.Logger.Errorf("unable to read request body: %w", err)
+		logger.Errorf("unable to read request body: %w", err)
 		return
 	}
 
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
-		h.Logger.Errorf("unable to unmarshal request body from json: %w", err)
+		logger.Errorf("unable to unmarshal request body from json: %w", err)
 		send("unable to unmarshal request body from json", nil, http.StatusBadRequest)
 		return
 	}
