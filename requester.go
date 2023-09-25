@@ -19,7 +19,7 @@ type Requester struct {
 	MaxResponseBodySize int64
 }
 
-func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (out interface{}, respHeader http.Header, err error) {
+func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (out interface{}, resp *http.Response, err error) {
 	req := (&http.Request{
 		Method: r.Method,
 		URL:    r.URL,
@@ -34,7 +34,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 
-	resp, err := r.Client.Do(req)
+	resp, err = r.Client.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("http request error: %w", err)
 	}
@@ -51,12 +51,12 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 	data, err = io.ReadAll(rd)
 	if err != nil {
-		return nil, resp.Header, fmt.Errorf("unable to read response body: %w", err)
+		return nil, resp, fmt.Errorf("unable to read response body: %w", err)
 	}
 
 	err = json.Unmarshal(data, copiedOutVal.Interface())
 	if err != nil {
-		return nil, resp.Header, fmt.Errorf("unable to unmarshal response body: %w", err)
+		return nil, resp, fmt.Errorf("unable to unmarshal response body: %w", err)
 	}
 
 	if outVal.Kind() == reflect.Pointer {
@@ -65,5 +65,5 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 		out = copiedOutVal.Elem().Interface()
 	}
 
-	return out, resp.Header, nil
+	return out, resp, nil
 }
