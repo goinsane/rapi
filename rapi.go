@@ -12,7 +12,7 @@ import (
 	"github.com/goinsane/logng"
 )
 
-type DoFunc func(in interface{}, header http.Header, send SendFunc)
+type DoFunc func(req *http.Request, in interface{}, send SendFunc)
 type SendFunc func(out interface{}, header http.Header, code int)
 
 type Handler struct {
@@ -119,5 +119,5 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		in = copiedInVal.Interface()
 	}
 
-	h.Do(in, r.Header.Clone(), send)
+	h.Do(r, in, send)
 }
