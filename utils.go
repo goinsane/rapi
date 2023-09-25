@@ -3,8 +3,11 @@ package rapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"github.com/goinsane/logng"
@@ -35,4 +38,29 @@ func sendResponse(logger *logng.Logger, w http.ResponseWriter, out interface{}, 
 		logger.Errorf("unable to write response body: %w", err)
 		return
 	}
+}
+
+func copyReflectValue(val reflect.Value) reflect.Value {
+	var indirectVal reflect.Value
+	if val.Kind() != reflect.Pointer {
+		indirectVal = val
+	} else {
+		if val.IsNil() {
+			panic(errors.New("pointer value is nil"))
+		}
+		indirectVal = val.Elem()
+	}
+
+	copiedVal := reflect.New(indirectVal.Type())
+
+	data, err := json.Marshal(indirectVal.Interface())
+	if err != nil {
+		panic(fmt.Errorf("unable to marshal value: %w", err))
+	}
+	err = json.Unmarshal(data, copiedVal.Interface())
+	if err != nil {
+		panic(fmt.Errorf("unable to unmarshal value data: %w", err))
+	}
+
+	return copiedVal
 }
