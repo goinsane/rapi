@@ -45,9 +45,9 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	outVal := reflect.ValueOf(r.Out)
 	copiedOutVal := copyReflectValue(outVal)
 
-	var rd io.Reader = req.Body
+	var rd io.Reader = resp.Body
 	if r.MaxResponseBodySize > 0 {
-		rd = io.LimitReader(req.Body, r.MaxResponseBodySize)
+		rd = io.LimitReader(resp.Body, r.MaxResponseBodySize)
 	}
 	data, err = io.ReadAll(rd)
 	if err != nil {
@@ -56,7 +56,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 
 	err = json.Unmarshal(data, copiedOutVal.Interface())
 	if err != nil {
-		return nil, resp, fmt.Errorf("unable to unmarshal response body: %w", err)
+		return data, resp, fmt.Errorf("unable to unmarshal response body: %w", err)
 	}
 
 	if outVal.Kind() == reflect.Pointer {
