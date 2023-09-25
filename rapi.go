@@ -28,6 +28,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	h.handlersMu.RLock()
 	ph := h.handlers[r.Method]
+	if ph == nil {
+		ph = h.handlers[""]
+	}
 	h.handlersMu.RUnlock()
 	if ph == nil {
 		sendResponse(logger, w, http.StatusText(http.StatusMethodNotAllowed), nil, http.StatusMethodNotAllowed)
