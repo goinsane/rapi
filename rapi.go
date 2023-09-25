@@ -41,7 +41,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ph.ServeHTTP(w, r)
 }
 
-func (h *Handler) Register(method string, in interface{}, do DoFunc) *Handler {
+func (h *Handler) Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) *Handler {
 	method = strings.ToUpper(method)
 	h.handlersMu.Lock()
 	defer h.handlersMu.Unlock()
@@ -53,18 +53,20 @@ func (h *Handler) Register(method string, in interface{}, do DoFunc) *Handler {
 		panic("method already registered")
 	}
 	ph = &_PureHandler{
-		Handler: h,
-		In:      in,
-		Do:      do,
+		Handler:    h,
+		In:         in,
+		Do:         do,
+		Middleware: middleware,
 	}
 	h.handlers[method] = ph
 	return h
 }
 
 type _PureHandler struct {
-	Handler *Handler
-	In      interface{}
-	Do      DoFunc
+	Handler    *Handler
+	In         interface{}
+	Do         DoFunc
+	Middleware []DoFunc
 }
 
 func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +124,13 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, m := range h.Handler.Middleware {
+		m(r, in, w.Header(), send)
+		if sent != 0 {
+			return
+		}
+	}
+
+	for _, m := range h.Middleware {
 		m(r, in, w.Header(), send)
 		if sent != 0 {
 			return
