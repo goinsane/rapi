@@ -78,18 +78,24 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	inVal := reflect.ValueOf(h.In)
 	isInValPtr := inVal.Kind() == reflect.Pointer
+
 	var indirectInVal reflect.Value
 	if !isInValPtr {
 		indirectInVal = inVal
 	} else {
 		indirectInVal = inVal.Elem()
 	}
-	switch indirectInVal.Kind() {
-	case reflect.Slice, reflect.Map:
-		isInValPtr = false
-	}
+
 	copiedInVal := reflect.New(indirectInVal.Type())
-	copiedInVal.Elem().Set(indirectInVal)
+
+	inData, err := json.Marshal(indirectInVal.Interface())
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(inData, copiedInVal.Interface())
+	if err != nil {
+		panic(err)
+	}
 
 	var sent int32
 	send := func(out interface{}, code int) {
