@@ -13,7 +13,7 @@ import (
 func sendResponse(logger *logng.Logger, w http.ResponseWriter, out interface{}, code int) {
 	data, err := json.Marshal(out)
 	if err != nil {
-		logger.Errorf("unable to marshal response body to json: %w", err)
+		logger.Errorf("unable to marshal output: %w", err)
 		data, _ := json.Marshal(http.StatusText(http.StatusInternalServerError))
 		data = append(data, '\n')
 		w.Header().Set("Content-Type", "application/json")

@@ -2,6 +2,8 @@ package rapi
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -50,7 +52,7 @@ func (h *Handler) Register(method string, in interface{}, do DoFunc, middleware 
 	}
 	ph := h.handlers[method]
 	if ph != nil {
-		panic("method already registered")
+		panic(fmt.Errorf("method %q already registered", method))
 	}
 	ph = &_PureHandler{
 		Handler:    h,
@@ -90,17 +92,17 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	inData, err := json.Marshal(indirectInVal.Interface())
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("unable to marshal input: %w", err))
 	}
 	err = json.Unmarshal(inData, copiedInVal.Interface())
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("unable to unmarshal input data: %w", err))
 	}
 
 	var sent int32
 	send := func(out interface{}, code int) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
-			panic("already sent")
+			panic(errors.New("already sent"))
 		}
 		sendResponse(logger, w, out, code)
 	}
@@ -117,8 +119,8 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
-		logger.Errorf("unable to unmarshal request body from json: %w", err)
-		send("unable to unmarshal request body from json", http.StatusBadRequest)
+		logger.Errorf("unable to unmarshal request body: %w", err)
+		send("unable to unmarshal request body", http.StatusBadRequest)
 		return
 	}
 
