@@ -40,7 +40,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ph.ServeHTTP(w, r)
 }
 
-func (h *Handler) Register(method string, in interface{}, do DoFunc) {
+func (h *Handler) Register(method string, in interface{}, do DoFunc) *Handler {
 	method = strings.ToUpper(method)
 	h.handlersMu.Lock()
 	defer h.handlersMu.Unlock()
@@ -57,6 +57,7 @@ func (h *Handler) Register(method string, in interface{}, do DoFunc) {
 		Do:      do,
 	}
 	h.handlers[method] = ph
+	return h
 }
 
 type _PureHandler struct {
