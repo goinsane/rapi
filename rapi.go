@@ -1,12 +1,10 @@
 package rapi
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
 	"reflect"
-	"strconv"
 	"sync/atomic"
 
 	"github.com/goinsane/logng"
@@ -47,33 +45,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic("already sent")
 		}
-		data, err := json.Marshal(out)
-		if err != nil {
-			h.Logger.Errorf("unable to marshal response body to json: %w", err)
-			data, _ := json.Marshal(http.StatusText(http.StatusInternalServerError))
-			data = append(data, '\n')
-			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
-			w.WriteHeader(http.StatusInternalServerError)
-			_, err = io.Copy(w, bytes.NewBuffer(data))
-			if err != nil {
-				h.Logger.Errorf("unable to write response body: %w", err)
-				return
-			}
-			return
-		}
-		data = append(data, '\n')
-		for key, val := range header {
-			w.Header()[key] = val
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
-		w.WriteHeader(code)
-		_, err = io.Copy(w, bytes.NewBuffer(data))
-		if err != nil {
-			h.Logger.Errorf("unable to write response body: %w", err)
-			return
-		}
+		sendResponse(h, w, out, header, code)
 	}
 
 	var rd io.Reader = r.Body
