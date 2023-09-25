@@ -12,11 +12,12 @@ import (
 	"github.com/goinsane/logng"
 )
 
-type DoFunc func(req *http.Request, in interface{}, send SendFunc)
-type SendFunc func(out interface{}, header http.Header, code int)
+type DoFunc func(req *http.Request, in interface{}, header http.Header, send SendFunc)
+type SendFunc func(out interface{}, code int)
 
 type Handler struct {
 	Logger             *logng.Logger
+	Middleware         []DoFunc
 	MaxRequestBodySize int64
 
 	handlersMu sync.RWMutex
@@ -33,7 +34,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.handlersMu.RUnlock()
 	if ph == nil {
-		sendResponse(logger, w, http.StatusText(http.StatusMethodNotAllowed), nil, http.StatusMethodNotAllowed)
+		sendResponse(logger, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -89,11 +90,11 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	copiedInVal.Elem().Set(indirectInVal)
 
 	var sent int32
-	send := func(out interface{}, header http.Header, code int) {
+	send := func(out interface{}, code int) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic("already sent")
 		}
-		sendResponse(logger, w, out, header, code)
+		sendResponse(logger, w, out, code)
 	}
 
 	var rd io.Reader = r.Body
@@ -109,7 +110,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
 		logger.Errorf("unable to unmarshal request body from json: %w", err)
-		send("unable to unmarshal request body from json", nil, http.StatusBadRequest)
+		send("unable to unmarshal request body from json", http.StatusBadRequest)
 		return
 	}
 
@@ -120,5 +121,12 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		in = copiedInVal.Interface()
 	}
 
-	h.Do(r, in, send)
+	for _, m := range h.Handler.Middleware {
+		m(r, in, w.Header(), send)
+		if sent != 0 {
+			return
+		}
+	}
+
+	h.Do(r, in, w.Header(), send)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/goinsane/logng"
 )
 
-func sendResponse(logger *logng.Logger, w http.ResponseWriter, out interface{}, header http.Header, code int) {
+func sendResponse(logger *logng.Logger, w http.ResponseWriter, out interface{}, code int) {
 	data, err := json.Marshal(out)
 	if err != nil {
 		logger.Errorf("unable to marshal response body to json: %w", err)
@@ -27,9 +27,6 @@ func sendResponse(logger *logng.Logger, w http.ResponseWriter, out interface{}, 
 		return
 	}
 	data = append(data, '\n')
-	for key, val := range header {
-		w.Header()[key] = val
-	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 	w.WriteHeader(code)
