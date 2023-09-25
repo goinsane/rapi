@@ -25,7 +25,7 @@ type Handler struct {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := h.Logger.WithPrefixf("%s: ", r.Method)
+	logger := h.Logger.WithPrefixf("%s %s: ", r.Method, r.RequestURI)
 
 	h.handlersMu.RLock()
 	ph := h.handlers[r.Method]
@@ -68,7 +68,7 @@ type _PureHandler struct {
 }
 
 func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := h.Handler.Logger.WithPrefixf("%s: ", r.Method)
+	logger := h.Handler.Logger.WithPrefixf("%s %s: ", r.Method, r.RequestURI)
 
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
