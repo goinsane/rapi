@@ -33,7 +33,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.handlersMu.RUnlock()
 	if ph == nil {
-		sendJSONResponse(logger, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		logger.Errorf("method %s not allowed", r.Method)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -72,6 +73,8 @@ type _PureHandler struct {
 }
 
 func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var err error
+
 	logger := h.Handler.Logger.WithPrefixf("%s %s: ", req.Method, req.RequestURI)
 
 	defer func(Body io.ReadCloser) {
@@ -84,6 +87,15 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			panic(errors.New("already sent"))
 		}
 		sendJSONResponse(logger, w, out, code)
+	}
+
+	if contentType := req.Header.Get("Content-Type"); contentType != "" {
+		err = validateJSONContentType(contentType)
+		if err != nil {
+			logger.Errorf("invalid content type %q: %w", contentType, err)
+			http.Error(w, "invalid content type", http.StatusBadRequest)
+			return
+		}
 	}
 
 	var rd io.Reader = req.Body
@@ -102,7 +114,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
 		logger.Errorf("unable to unmarshal request body: %w", err)
-		send("unable to unmarshal request body", http.StatusBadRequest)
+		http.Error(w, "unable to unmarshal request body", http.StatusBadRequest)
 		return
 	}
 
