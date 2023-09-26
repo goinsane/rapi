@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/goinsane/logng"
 )
@@ -42,8 +43,13 @@ func validateJSONContentType(contentType string) error {
 	default:
 		return fmt.Errorf("invalid media type %q", mediatype)
 	}
-	if charset, ok := params["charset"]; ok && charset != "utf-8" {
-		return fmt.Errorf("invalid charset %q", charset)
+	if charset, ok := params["charset"]; ok {
+		charset = strings.ToLower(charset)
+		switch charset {
+		case "utf-8":
+		default:
+			return fmt.Errorf("invalid charset %q", charset)
+		}
 	}
 	return nil
 }
