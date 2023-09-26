@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -38,6 +39,22 @@ func sendResponse(logger *logng.Logger, w http.ResponseWriter, out interface{}, 
 		logger.Errorf("unable to write response body: %w", err)
 		return
 	}
+}
+
+func validateContentTypeJSON(contentType string) error {
+	mediatype, params, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return fmt.Errorf("unable to parse media type: %w", err)
+	}
+	switch mediatype {
+	case "application/json":
+	default:
+		return fmt.Errorf("invalid media type %q", mediatype)
+	}
+	if charset, ok := params["charset"]; ok && charset != "utf-8" {
+		return fmt.Errorf("invalid charset %q", charset)
+	}
+	return nil
 }
 
 func copyReflectValue(val reflect.Value) reflect.Value {

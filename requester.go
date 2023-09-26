@@ -31,7 +31,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 		return nil, nil, fmt.Errorf("unable to marshal input: %w", err)
 	}
 	data = append(data, '\n')
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 
 	resp, err = r.factory.Client.Do(req)
@@ -41,6 +41,13 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
+
+	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
+		err = validateContentTypeJSON(contentType)
+		if err != nil {
+			return nil, resp, fmt.Errorf("invalid content type %q: %w", contentType, err)
+		}
+	}
 
 	var rd io.Reader = resp.Body
 	if r.factory.MaxResponseBodySize > 0 {
