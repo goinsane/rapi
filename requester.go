@@ -18,6 +18,7 @@ type Requester struct {
 	url     *url.URL
 	header  http.Header
 	out     interface{}
+	errOut  interface{}
 }
 
 func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (out interface{}, resp *http.Response, err error) {
@@ -67,6 +68,9 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 
 	outVal := reflect.ValueOf(r.out)
+	if resp.StatusCode != http.StatusOK && r.errOut != nil {
+		outVal = reflect.ValueOf(r.errOut)
+	}
 	copiedOutVal := copyReflectValue(outVal)
 
 	err = json.Unmarshal(data, copiedOutVal.Interface())
@@ -89,7 +93,7 @@ type Factory struct {
 	MaxResponseBodySize int64
 }
 
-func (f *Factory) Get(method string, endpoint string, header http.Header, out interface{}) *Requester {
+func (f *Factory) Get(method string, endpoint string, header http.Header, out interface{}, errOut interface{}) *Requester {
 	if out == nil {
 		panic("output is nil")
 	}
@@ -104,5 +108,6 @@ func (f *Factory) Get(method string, endpoint string, header http.Header, out in
 		},
 		header: header.Clone(),
 		out:    out,
+		errOut: errOut,
 	}
 }
