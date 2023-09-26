@@ -7,22 +7,22 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"reflect"
 	"strconv"
 )
 
 type Requester struct {
-	Client              *http.Client
-	Method              string
-	URL                 *url.URL
-	Out                 interface{}
-	MaxResponseBodySize int64
+	factory *Factory
+	method  string
+	url     *url.URL
+	out     interface{}
 }
 
 func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (out interface{}, resp *http.Response, err error) {
 	req := (&http.Request{
-		Method: r.Method,
-		URL:    r.URL,
+		Method: r.method,
+		URL:    r.url,
 		Header: header.Clone(),
 	}).WithContext(ctx)
 
@@ -34,7 +34,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 
-	resp, err = r.Client.Do(req)
+	resp, err = r.factory.Client.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("http request error: %w", err)
 	}
@@ -43,15 +43,15 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}(resp.Body)
 
 	var rd io.Reader = resp.Body
-	if r.MaxResponseBodySize > 0 {
-		rd = io.LimitReader(resp.Body, r.MaxResponseBodySize)
+	if r.factory.MaxResponseBodySize > 0 {
+		rd = io.LimitReader(resp.Body, r.factory.MaxResponseBodySize)
 	}
 	data, err = io.ReadAll(rd)
 	if err != nil {
 		return nil, resp, fmt.Errorf("unable to read response body: %w", err)
 	}
 
-	outVal := reflect.ValueOf(r.Out)
+	outVal := reflect.ValueOf(r.out)
 	copiedOutVal := copyReflectValue(outVal)
 
 	err = json.Unmarshal(data, copiedOutVal.Interface())
@@ -66,4 +66,27 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 
 	return out, resp, nil
+}
+
+type Factory struct {
+	Client              *http.Client
+	URL                 *url.URL
+	MaxResponseBodySize int64
+}
+
+func (f *Factory) Get(method string, endpoint string, out interface{}) *Requester {
+	if out == nil {
+		panic("output is nil")
+	}
+	return &Requester{
+		factory: f,
+		method:  method,
+		url: &url.URL{
+			Scheme:   f.URL.Scheme,
+			Host:     f.URL.Host,
+			Path:     path.Join(f.URL.Path, endpoint),
+			RawQuery: "",
+		},
+		out: out,
+	}
 }
