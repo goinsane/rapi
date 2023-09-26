@@ -16,6 +16,7 @@ type Requester struct {
 	factory *Factory
 	method  string
 	url     *url.URL
+	header  http.Header
 	out     interface{}
 }
 
@@ -23,8 +24,15 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	req := (&http.Request{
 		Method: r.method,
 		URL:    r.url,
-		Header: header.Clone(),
+		Header: r.header.Clone(),
 	}).WithContext(ctx)
+
+	if req.Header == nil {
+		req.Header = http.Header{}
+	}
+	for k, v := range header.Clone() {
+		req.Header[k] = v
+	}
 
 	data, err := json.Marshal(in)
 	if err != nil {
@@ -81,7 +89,7 @@ type Factory struct {
 	MaxResponseBodySize int64
 }
 
-func (f *Factory) Get(method string, endpoint string, out interface{}) *Requester {
+func (f *Factory) Get(method string, endpoint string, header http.Header, out interface{}) *Requester {
 	if out == nil {
 		panic("output is nil")
 	}
@@ -94,6 +102,7 @@ func (f *Factory) Get(method string, endpoint string, out interface{}) *Requeste
 			Path:     path.Join(f.URL.Path, endpoint),
 			RawQuery: "",
 		},
-		out: out,
+		header: header.Clone(),
+		out:    out,
 	}
 }
