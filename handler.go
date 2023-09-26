@@ -86,7 +86,11 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic(errors.New("already sent"))
 		}
-		sendJSONResponse(logger, w, out, code)
+		err = sendJSONResponse(w, out, code)
+		if err != nil {
+			logger.Error(err)
+			return
+		}
 	}
 
 	if contentType := req.Header.Get("Content-Type"); contentType != "" {

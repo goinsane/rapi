@@ -11,16 +11,14 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/goinsane/logng"
 )
 
-func sendJSONResponse(logger *logng.Logger, w http.ResponseWriter, out interface{}, code int) {
+func sendJSONResponse(w http.ResponseWriter, out interface{}, code int) error {
 	data, err := json.Marshal(out)
 	if err != nil {
-		logger.Errorf("unable to marshal output: %w", err)
+		err = fmt.Errorf("unable to marshal output: %w", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return err
 	}
 	data = append(data, '\n')
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -28,9 +26,10 @@ func sendJSONResponse(logger *logng.Logger, w http.ResponseWriter, out interface
 	w.WriteHeader(code)
 	_, err = io.Copy(w, bytes.NewBuffer(data))
 	if err != nil {
-		logger.Errorf("unable to write response body: %w", err)
-		return
+		err = fmt.Errorf("unable to write response body: %w", err)
+		return err
 	}
+	return nil
 }
 
 func validateJSONContentType(contentType string) error {
