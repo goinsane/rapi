@@ -41,6 +41,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) *Handler {
+	if in == nil {
+		panic("input is nil")
+	}
 	method = strings.ToUpper(method)
 	h.handlersMu.Lock()
 	defer h.handlersMu.Unlock()
@@ -75,9 +78,6 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		_ = Body.Close()
 	}(req.Body)
 
-	inVal := reflect.ValueOf(h.In)
-	copiedInVal := copyReflectValue(inVal)
-
 	var sent int32
 	send := func(out interface{}, code int) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
@@ -95,6 +95,9 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		logger.Errorf("unable to read request body: %w", err)
 		return
 	}
+
+	inVal := reflect.ValueOf(h.In)
+	copiedInVal := copyReflectValue(inVal)
 
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {

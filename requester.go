@@ -42,9 +42,6 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 		_ = Body.Close()
 	}(resp.Body)
 
-	outVal := reflect.ValueOf(r.Out)
-	copiedOutVal := copyReflectValue(outVal)
-
 	var rd io.Reader = resp.Body
 	if r.MaxResponseBodySize > 0 {
 		rd = io.LimitReader(resp.Body, r.MaxResponseBodySize)
@@ -53,6 +50,9 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	if err != nil {
 		return nil, resp, fmt.Errorf("unable to read response body: %w", err)
 	}
+
+	outVal := reflect.ValueOf(r.Out)
+	copiedOutVal := copyReflectValue(outVal)
 
 	err = json.Unmarshal(data, copiedOutVal.Interface())
 	if err != nil {
