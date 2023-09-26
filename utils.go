@@ -16,9 +16,8 @@ import (
 func sendJSONResponse(w http.ResponseWriter, out interface{}, code int) error {
 	data, err := json.Marshal(out)
 	if err != nil {
-		err = fmt.Errorf("unable to marshal output: %w", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return err
+		return fmt.Errorf("unable to marshal output: %w", err)
 	}
 	data = append(data, '\n')
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -26,8 +25,7 @@ func sendJSONResponse(w http.ResponseWriter, out interface{}, code int) error {
 	w.WriteHeader(code)
 	_, err = io.Copy(w, bytes.NewBuffer(data))
 	if err != nil {
-		err = fmt.Errorf("unable to write response body: %w", err)
-		return err
+		return fmt.Errorf("unable to write response body: %w", err)
 	}
 	return nil
 }
