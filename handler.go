@@ -105,6 +105,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(rd)
 	if err != nil {
 		logger.Errorf("unable to read request body: %w", err)
+		http.Error(w, "unable to read request body", http.StatusBadRequest)
 		return
 	}
 
