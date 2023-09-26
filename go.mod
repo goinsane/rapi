@@ -1,3 +1,3 @@
 module github.com/goinsane/rapi
 
-go 1.20
+go 1.16
