@@ -43,7 +43,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}(resp.Body)
 
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
-		err = validateContentTypeJSON(contentType)
+		err = validateJSONContentType(contentType)
 		if err != nil {
 			return nil, resp, fmt.Errorf("invalid content type %q: %w", contentType, err)
 		}

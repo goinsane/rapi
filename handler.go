@@ -33,7 +33,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.handlersMu.RUnlock()
 	if ph == nil {
-		sendResponse(logger, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		sendJSONResponse(logger, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic(errors.New("already sent"))
 		}
-		sendResponse(logger, w, out, code)
+		sendJSONResponse(logger, w, out, code)
 	}
 
 	var rd io.Reader = req.Body
