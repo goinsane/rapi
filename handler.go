@@ -88,6 +88,10 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic(errors.New("already sent"))
 		}
+		if r.Method == http.MethodHead {
+			w.WriteHeader(code)
+			return
+		}
 		err = sendJSONResponse(w, out, code)
 		if err != nil {
 			h.Handler.onError(fmt.Errorf("unable to send json response: %w", err), r)
@@ -95,7 +99,11 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if contentType := r.Header.Get("Content-Type"); contentType != "" {
+	inVal := reflect.ValueOf(h.In)
+	copiedInVal := copyReflectValue(inVal)
+
+	contentType := r.Header.Get("Content-Type")
+	if contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
 			h.Handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
@@ -104,25 +112,36 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var rd io.Reader = r.Body
-	if h.Handler.MaxRequestBodySize > 0 {
-		rd = io.LimitReader(r.Body, h.Handler.MaxRequestBodySize)
-	}
-	data, err := io.ReadAll(rd)
-	if err != nil {
-		h.Handler.onError(fmt.Errorf("unable to read request body: %w", err), r)
-		http.Error(w, "unable to read request body", http.StatusBadRequest)
-		return
-	}
+	if contentType == "" && (r.Method == http.MethodHead || r.Method == http.MethodGet) {
+		values := map[string]string{}
+		for k := range r.URL.Query() {
+			values[k] = r.URL.Query().Get(k)
+		}
+		err = valuesToStruct(values, copiedInVal.Interface())
+		if err != nil {
+			h.Handler.onError(fmt.Errorf("invalid query: %w", err), r)
+			http.Error(w, "invalid query", http.StatusBadRequest)
+			return
+		}
+	} else {
+		var rd io.Reader = r.Body
+		if h.Handler.MaxRequestBodySize > 0 {
+			rd = io.LimitReader(r.Body, h.Handler.MaxRequestBodySize)
+		}
+		var data []byte
+		data, err = io.ReadAll(rd)
+		if err != nil {
+			h.Handler.onError(fmt.Errorf("unable to read request body: %w", err), r)
+			http.Error(w, "unable to read request body", http.StatusBadRequest)
+			return
+		}
 
-	inVal := reflect.ValueOf(h.In)
-	copiedInVal := copyReflectValue(inVal)
-
-	err = json.Unmarshal(data, copiedInVal.Interface())
-	if err != nil {
-		h.Handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
-		http.Error(w, "unable to unmarshal request body", http.StatusBadRequest)
-		return
+		err = json.Unmarshal(data, copiedInVal.Interface())
+		if err != nil {
+			h.Handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
+			http.Error(w, "unable to unmarshal request body", http.StatusBadRequest)
+			return
+		}
 	}
 
 	var in interface{}
