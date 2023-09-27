@@ -191,7 +191,49 @@ func strToReflectValue(str string, val reflect.Value) (err error) {
 			val.Set(reflect.ValueOf(&y))
 		}
 	default:
-		panic(fmt.Errorf("unknown type %s for value", typ))
+		return fmt.Errorf("unknown type %s for value", typ)
 	}
+	return nil
+}
+
+func valuesToStruct(values map[string]string, target interface{}) (err error) {
+	if target == nil {
+		panic(errors.New("target is nil"))
+	}
+
+	val := reflect.ValueOf(target)
+	if val.Kind() != reflect.Pointer || val.Elem().Kind() != reflect.Struct {
+		panic(errors.New("target must be struct pointer"))
+	}
+	if val.IsNil() {
+		panic(errors.New("target must be non-nil"))
+	}
+
+	val = val.Elem()
+	typ := val.Type()
+
+	for i, j := 0, typ.NumField(); i < j; i++ {
+		field := typ.Field(i)
+		fieldVal := val.Field(i)
+
+		var fieldName string
+		if v, ok := field.Tag.Lookup("json"); ok {
+			fieldName = strings.SplitN(v, ",", 2)[0]
+		} else {
+			fieldName = strings.ToLower(strings.ReplaceAll(field.Name, "_", ""))
+		}
+
+		if !field.IsExported() || field.Anonymous || fieldName == "-" {
+			continue
+		}
+
+		if value, ok := values[fieldName]; ok {
+			err = strToReflectValue(value, fieldVal)
+			if err != nil {
+				return fmt.Errorf("unable to set field %q value: %w", fieldName, err)
+			}
+		}
+	}
+
 	return nil
 }
