@@ -31,7 +31,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if ph == nil {
 		h.onError(fmt.Errorf("method %s not allowed", r.Method), r)
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = validateJSONContentType(contentType)
 		if err != nil {
 			h.Handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
-			http.Error(w, "invalid content type", http.StatusBadRequest)
+			httpError(r, w, "invalid content type", http.StatusBadRequest)
 			return
 		}
 	}
@@ -120,7 +120,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = valuesToStruct(values, copiedInVal.Interface())
 		if err != nil {
 			h.Handler.onError(fmt.Errorf("invalid query: %w", err), r)
-			http.Error(w, "invalid query", http.StatusBadRequest)
+			httpError(r, w, "invalid query", http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -132,14 +132,14 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		data, err = io.ReadAll(rd)
 		if err != nil {
 			h.Handler.onError(fmt.Errorf("unable to read request body: %w", err), r)
-			http.Error(w, "unable to read request body", http.StatusBadRequest)
+			httpError(r, w, "unable to read request body", http.StatusBadRequest)
 			return
 		}
 
 		err = json.Unmarshal(data, copiedInVal.Interface())
 		if err != nil {
 			h.Handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
-			http.Error(w, "unable to unmarshal request body", http.StatusBadRequest)
+			httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
 			return
 		}
 	}

@@ -30,6 +30,14 @@ func sendJSONResponse(w http.ResponseWriter, out interface{}, code int) error {
 	return nil
 }
 
+func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
+	if r.Method == http.MethodHead {
+		w.WriteHeader(code)
+		return
+	}
+	http.Error(w, error, code)
+}
+
 func validateJSONContentType(contentType string) error {
 	mediatype, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
