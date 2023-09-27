@@ -17,49 +17,43 @@ type Handler struct {
 	MaxRequestBodySize int64
 	OnError            func(error, *http.Request)
 
-	handlersMu sync.RWMutex
-	handlers   map[string]*_PureHandler
+	mu              sync.RWMutex
+	serveMux        *http.ServeMux
+	patternHandlers map[string]*PatternHandler
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.handlersMu.RLock()
-	ph := h.handlers[r.Method]
-	if ph == nil {
-		ph = h.handlers[""]
-	}
-	h.handlersMu.RUnlock()
-
-	if ph == nil {
-		h.onError(fmt.Errorf("method %s not allowed", r.Method), r)
-		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	h.mu.RLock()
+	serveMux := h.serveMux
+	h.mu.RUnlock()
+	if serveMux == nil {
 		return
 	}
-
-	ph.ServeHTTP(w, r)
+	serveMux.ServeHTTP(w, r)
 }
 
-func (h *Handler) Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) *Handler {
-	if in == nil {
-		panic("input is nil")
+func (h *Handler) Handle(pattern string) *PatternHandler {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.serveMux == nil {
+		h.serveMux = http.NewServeMux()
 	}
-	method = strings.ToUpper(method)
-	h.handlersMu.Lock()
-	defer h.handlersMu.Unlock()
-	if h.handlers == nil {
-		h.handlers = make(map[string]*_PureHandler)
+
+	if h.patternHandlers == nil {
+		h.patternHandlers = make(map[string]*PatternHandler)
 	}
-	ph := h.handlers[method]
-	if ph != nil {
-		panic(fmt.Errorf("method %q already registered", method))
+
+	patternHandler := h.patternHandlers[pattern]
+	if patternHandler == nil {
+		patternHandler = &PatternHandler{
+			handler: h,
+		}
+		h.serveMux.Handle(pattern, patternHandler)
+		h.patternHandlers[pattern] = patternHandler
 	}
-	ph = &_PureHandler{
-		Handler:    h,
-		In:         in,
-		Do:         do,
-		Middleware: middleware,
-	}
-	h.handlers[method] = ph
-	return h
+
+	return patternHandler
 }
 
 func (h *Handler) onError(err error, r *http.Request) {
@@ -69,14 +63,67 @@ func (h *Handler) onError(err error, r *http.Request) {
 	h.OnError(err, r)
 }
 
-type _PureHandler struct {
-	Handler    *Handler
-	In         interface{}
-	Do         DoFunc
-	Middleware []DoFunc
+type PatternHandler struct {
+	handler        *Handler
+	mu             sync.RWMutex
+	methodHandlers map[string]*_MethodHandler
 }
 
-func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mu.RLock()
+	ph := h.methodHandlers[r.Method]
+	if ph == nil {
+		ph = h.methodHandlers[""]
+	}
+	h.mu.RUnlock()
+
+	if ph == nil {
+		h.handler.onError(fmt.Errorf("method %s not allowed", r.Method), r)
+		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	ph.ServeHTTP(w, r)
+}
+
+func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) *PatternHandler {
+	if in == nil {
+		panic("input is nil")
+	}
+
+	method = strings.ToUpper(method)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.methodHandlers == nil {
+		h.methodHandlers = make(map[string]*_MethodHandler)
+	}
+
+	ph := h.methodHandlers[method]
+	if ph != nil {
+		panic(fmt.Errorf("method %q already registered", method))
+	}
+
+	ph = &_MethodHandler{
+		patternHandler: h,
+		in:             in,
+		do:             do,
+		middleware:     middleware,
+	}
+	h.methodHandlers[method] = ph
+
+	return h
+}
+
+type _MethodHandler struct {
+	patternHandler *PatternHandler
+	in             interface{}
+	do             DoFunc
+	middleware     []DoFunc
+}
+
+func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	defer func(Body io.ReadCloser) {
@@ -94,19 +141,19 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		err = sendJSONResponse(w, out, code)
 		if err != nil {
-			h.Handler.onError(fmt.Errorf("unable to send json response: %w", err), r)
+			h.patternHandler.handler.onError(fmt.Errorf("unable to send json response: %w", err), r)
 			return
 		}
 	}
 
-	inVal := reflect.ValueOf(h.In)
+	inVal := reflect.ValueOf(h.in)
 	copiedInVal := copyReflectValue(inVal)
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
-			h.Handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
+			h.patternHandler.handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
 			httpError(r, w, "invalid content type", http.StatusBadRequest)
 			return
 		}
@@ -119,26 +166,26 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		err = valuesToStruct(values, copiedInVal.Interface())
 		if err != nil {
-			h.Handler.onError(fmt.Errorf("invalid query: %w", err), r)
+			h.patternHandler.handler.onError(fmt.Errorf("invalid query: %w", err), r)
 			httpError(r, w, "invalid query", http.StatusBadRequest)
 			return
 		}
 	} else {
 		var rd io.Reader = r.Body
-		if h.Handler.MaxRequestBodySize > 0 {
-			rd = io.LimitReader(r.Body, h.Handler.MaxRequestBodySize)
+		if h.patternHandler.handler.MaxRequestBodySize > 0 {
+			rd = io.LimitReader(r.Body, h.patternHandler.handler.MaxRequestBodySize)
 		}
 		var data []byte
 		data, err = io.ReadAll(rd)
 		if err != nil {
-			h.Handler.onError(fmt.Errorf("unable to read request body: %w", err), r)
+			h.patternHandler.handler.onError(fmt.Errorf("unable to read request body: %w", err), r)
 			httpError(r, w, "unable to read request body", http.StatusBadRequest)
 			return
 		}
 
 		err = json.Unmarshal(data, copiedInVal.Interface())
 		if err != nil {
-			h.Handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
+			h.patternHandler.handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
 			httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
 			return
 		}
@@ -156,19 +203,19 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		In:      in,
 	}
 
-	for _, m := range h.Handler.Middleware {
+	for _, m := range h.patternHandler.handler.Middleware {
 		m(req, w.Header(), send)
 		if sent != 0 {
 			return
 		}
 	}
 
-	for _, m := range h.Middleware {
+	for _, m := range h.middleware {
 		m(req, w.Header(), send)
 		if sent != 0 {
 			return
 		}
 	}
 
-	h.Do(req, w.Header(), send)
+	h.do(req, w.Header(), send)
 }
