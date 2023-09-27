@@ -18,7 +18,7 @@ type Requester struct {
 	url     *url.URL
 	header  http.Header
 	out     interface{}
-	errOut  interface{}
+	errOut  error
 }
 
 func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (result *Response, err error) {
@@ -72,8 +72,10 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 		return result, fmt.Errorf("unable to read response body: %w", err)
 	}
 
+	isErr := resp.StatusCode != http.StatusOK && r.errOut != nil
+
 	outVal := reflect.ValueOf(r.out)
-	if resp.StatusCode != http.StatusOK && r.errOut != nil {
+	if isErr {
 		outVal = reflect.ValueOf(r.errOut)
 	}
 	copiedOutVal := copyReflectValue(outVal)
@@ -92,6 +94,10 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 
 	result.Out = out
 
+	if isErr {
+		return result, out.(error)
+	}
+
 	return result, nil
 }
 
@@ -101,7 +107,7 @@ type Factory struct {
 	MaxResponseBodySize int64
 }
 
-func (f *Factory) Get(method string, endpoint string, header http.Header, out interface{}, errOut interface{}) *Requester {
+func (f *Factory) Get(method string, endpoint string, header http.Header, out interface{}, errOut error) *Requester {
 	if out == nil {
 		panic("output is nil")
 	}
