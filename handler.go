@@ -19,7 +19,7 @@ type Handler struct {
 
 	mu              sync.RWMutex
 	serveMux        *http.ServeMux
-	patternHandlers map[string]*_PatternHandler
+	patternHandlers map[string]*PatternHandler
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +32,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveMux.ServeHTTP(w, r)
 }
 
-func (h *Handler) Handle(pattern string, middleware ...DoFunc) PatternHandler {
+func (h *Handler) Handle(pattern string, middleware ...DoFunc) *PatternHandler {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -41,12 +41,12 @@ func (h *Handler) Handle(pattern string, middleware ...DoFunc) PatternHandler {
 	}
 
 	if h.patternHandlers == nil {
-		h.patternHandlers = make(map[string]*_PatternHandler)
+		h.patternHandlers = make(map[string]*PatternHandler)
 	}
 
 	patternHandler := h.patternHandlers[pattern]
 	if patternHandler == nil {
-		patternHandler = &_PatternHandler{
+		patternHandler = &PatternHandler{
 			handler:    h,
 			middleware: middleware,
 		}
@@ -64,11 +64,7 @@ func (h *Handler) onError(err error, r *http.Request) {
 	h.OnError(err, r)
 }
 
-type PatternHandler interface {
-	Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) PatternHandler
-}
-
-type _PatternHandler struct {
+type PatternHandler struct {
 	handler    *Handler
 	middleware []DoFunc
 
@@ -76,7 +72,7 @@ type _PatternHandler struct {
 	methodHandlers map[string]*_MethodHandler
 }
 
-func (h *_PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
 	ph := h.methodHandlers[r.Method]
 	if ph == nil {
@@ -93,7 +89,7 @@ func (h *_PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ph.ServeHTTP(w, r)
 }
 
-func (h *_PatternHandler) Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) PatternHandler {
+func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) *PatternHandler {
 	if in == nil {
 		panic("input is nil")
 	}
@@ -124,7 +120,7 @@ func (h *_PatternHandler) Register(method string, in interface{}, do DoFunc, mid
 }
 
 type _MethodHandler struct {
-	patternHandler *_PatternHandler
+	patternHandler *PatternHandler
 	in             interface{}
 	do             DoFunc
 	middleware     []DoFunc
