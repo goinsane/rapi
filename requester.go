@@ -21,7 +21,7 @@ type Requester struct {
 	errOut  interface{}
 }
 
-func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (out interface{}, resp *http.Response, err error) {
+func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (result *Response, err error) {
 	req := (&http.Request{
 		Method: r.method,
 		URL:    r.url,
@@ -37,24 +37,29 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 
 	data, err := json.Marshal(in)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to marshal input: %w", err)
+		return nil, fmt.Errorf("unable to marshal input: %w", err)
 	}
 	data = append(data, '\n')
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 
-	resp, err = r.factory.Client.Do(req)
+	resp, err := r.factory.Client.Do(req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("http request error: %w", err)
+		return nil, fmt.Errorf("http request error: %w", err)
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
 
+	result = &Response{
+		Response: resp,
+		Out:      nil,
+	}
+
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
-			return nil, resp, fmt.Errorf("invalid content type %q: %w", contentType, err)
+			return result, fmt.Errorf("invalid content type %q: %w", contentType, err)
 		}
 	}
 
@@ -64,7 +69,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 	data, err = io.ReadAll(rd)
 	if err != nil {
-		return nil, resp, fmt.Errorf("unable to read response body: %w", err)
+		return result, fmt.Errorf("unable to read response body: %w", err)
 	}
 
 	outVal := reflect.ValueOf(r.out)
@@ -75,16 +80,19 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 
 	err = json.Unmarshal(data, copiedOutVal.Interface())
 	if err != nil {
-		return data, resp, fmt.Errorf("unable to unmarshal response body: %w", err)
+		return result, fmt.Errorf("unable to unmarshal response body: %w", err)
 	}
 
+	var out interface{}
 	if outVal.Kind() == reflect.Pointer {
 		out = copiedOutVal.Interface()
 	} else {
 		out = copiedOutVal.Elem().Interface()
 	}
 
-	return out, resp, nil
+	result.Out = out
+
+	return result, nil
 }
 
 type Factory struct {
