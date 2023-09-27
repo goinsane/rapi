@@ -76,12 +76,12 @@ type _PureHandler struct {
 	Middleware []DoFunc
 }
 
-func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
-	}(req.Body)
+	}(r.Body)
 
 	var sent int32
 	send := func(out interface{}, code int) {
@@ -95,7 +95,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	if contentType := req.Header.Get("Content-Type"); contentType != "" {
+	if contentType := r.Header.Get("Content-Type"); contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
 			h.Handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err))
@@ -104,9 +104,9 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	var rd io.Reader = req.Body
+	var rd io.Reader = r.Body
 	if h.Handler.MaxRequestBodySize > 0 {
-		rd = io.LimitReader(req.Body, h.Handler.MaxRequestBodySize)
+		rd = io.LimitReader(r.Body, h.Handler.MaxRequestBodySize)
 	}
 	data, err := io.ReadAll(rd)
 	if err != nil {
@@ -132,19 +132,24 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		in = copiedInVal.Elem().Interface()
 	}
 
+	req := &Request{
+		Request: r,
+		In:      in,
+	}
+
 	for _, m := range h.Handler.Middleware {
-		m(req, in, w.Header(), send)
+		m(req, w.Header(), send)
 		if sent != 0 {
 			return
 		}
 	}
 
 	for _, m := range h.Middleware {
-		m(req, in, w.Header(), send)
+		m(req, w.Header(), send)
 		if sent != 0 {
 			return
 		}
 	}
 
-	h.Do(req, in, w.Header(), send)
+	h.Do(req, w.Header(), send)
 }
