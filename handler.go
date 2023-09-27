@@ -32,7 +32,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serveMux.ServeHTTP(w, r)
 }
 
-func (h *Handler) Handle(pattern string) *PatternHandler {
+func (h *Handler) Handle(pattern string, middleware ...DoFunc) *PatternHandler {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -47,7 +47,8 @@ func (h *Handler) Handle(pattern string) *PatternHandler {
 	patternHandler := h.patternHandlers[pattern]
 	if patternHandler == nil {
 		patternHandler = &PatternHandler{
-			handler: h,
+			handler:    h,
+			middleware: middleware,
 		}
 		h.serveMux.Handle(pattern, patternHandler)
 		h.patternHandlers[pattern] = patternHandler
@@ -65,6 +66,7 @@ func (h *Handler) onError(err error, r *http.Request) {
 
 type PatternHandler struct {
 	handler        *Handler
+	middleware     []DoFunc
 	mu             sync.RWMutex
 	methodHandlers map[string]*_MethodHandler
 }
@@ -204,6 +206,13 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, m := range h.patternHandler.handler.Middleware {
+		m(req, w.Header(), send)
+		if sent != 0 {
+			return
+		}
+	}
+
+	for _, m := range h.patternHandler.middleware {
 		m(req, w.Header(), send)
 		if sent != 0 {
 			return
