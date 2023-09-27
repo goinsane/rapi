@@ -15,7 +15,7 @@ import (
 type Handler struct {
 	Middleware         []DoFunc
 	MaxRequestBodySize int64
-	OnError            func(error)
+	OnError            func(error, *http.Request)
 
 	handlersMu sync.RWMutex
 	handlers   map[string]*_PureHandler
@@ -30,7 +30,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handlersMu.RUnlock()
 
 	if ph == nil {
-		h.onError(fmt.Errorf("method %s not allowed", r.Method))
+		h.onError(fmt.Errorf("method %s not allowed", r.Method), r)
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -62,11 +62,11 @@ func (h *Handler) Register(method string, in interface{}, do DoFunc, middleware 
 	return h
 }
 
-func (h *Handler) onError(err error) {
+func (h *Handler) onError(err error, r *http.Request) {
 	if h.OnError == nil {
 		return
 	}
-	h.OnError(err)
+	h.OnError(err, r)
 }
 
 type _PureHandler struct {
@@ -90,7 +90,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		err = sendJSONResponse(w, out, code)
 		if err != nil {
-			h.Handler.onError(fmt.Errorf("unable to send json response: %w", err))
+			h.Handler.onError(fmt.Errorf("unable to send json response: %w", err), r)
 			return
 		}
 	}
@@ -98,7 +98,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if contentType := r.Header.Get("Content-Type"); contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
-			h.Handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err))
+			h.Handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
 			http.Error(w, "invalid content type", http.StatusBadRequest)
 			return
 		}
@@ -110,7 +110,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := io.ReadAll(rd)
 	if err != nil {
-		h.Handler.onError(fmt.Errorf("unable to read request body: %w", err))
+		h.Handler.onError(fmt.Errorf("unable to read request body: %w", err), r)
 		http.Error(w, "unable to read request body", http.StatusBadRequest)
 		return
 	}
@@ -120,7 +120,7 @@ func (h *_PureHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(data, copiedInVal.Interface())
 	if err != nil {
-		h.Handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err))
+		h.Handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
 		http.Error(w, "unable to unmarshal request body", http.StatusBadRequest)
 		return
 	}
