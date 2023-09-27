@@ -191,7 +191,7 @@ func strToReflectValue(str string, val reflect.Value) (err error) {
 			val.Set(reflect.ValueOf(&y))
 		}
 	default:
-		return fmt.Errorf("unknown type %s for value", typ)
+		return fmt.Errorf("invalid type %s for value", typ)
 	}
 	return nil
 }
