@@ -214,6 +214,10 @@ func valuesToStruct(values map[string]string, target interface{}) (err error) {
 
 	for i, j := 0, typ.NumField(); i < j; i++ {
 		field := typ.Field(i)
+		if !field.IsExported() || field.Anonymous {
+			continue
+		}
+
 		fieldVal := val.Field(i)
 
 		var fieldName string
@@ -222,8 +226,7 @@ func valuesToStruct(values map[string]string, target interface{}) (err error) {
 		} else {
 			fieldName = strings.ToLower(strings.ReplaceAll(field.Name, "_", ""))
 		}
-
-		if !field.IsExported() || field.Anonymous || fieldName == "-" {
+		if fieldName == "-" {
 			continue
 		}
 
