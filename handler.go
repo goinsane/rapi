@@ -163,11 +163,7 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if contentType == "" && (r.Method == http.MethodHead || r.Method == http.MethodGet) {
-		values := map[string]string{}
-		for k := range r.URL.Query() {
-			values[k] = r.URL.Query().Get(k)
-		}
-		err = valuesToStruct(values, copiedInVal.Interface())
+		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
 			h.patternHandler.handler.onError(fmt.Errorf("invalid query: %w", err), r)
 			httpError(r, w, "invalid query", http.StatusBadRequest)

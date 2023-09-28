@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -204,29 +205,36 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 	return nil
 }*/
 
-func valuesToStruct(values map[string]string, target interface{}) (err error) {
+func valuesToStruct(values url.Values, target interface{}) (err error) {
 	if target == nil {
 		panic(errors.New("target is nil"))
 	}
 
 	val := reflect.ValueOf(target)
-	if val.Kind() != reflect.Pointer || val.Elem().Kind() != reflect.Struct {
+
+	var indirectVal reflect.Value
+	if val.Kind() != reflect.Pointer {
+		panic(errors.New("target must be struct pointer"))
+	} else {
+		if val.IsNil() {
+			panic(errors.New("target pointer is nil"))
+		}
+		indirectVal = val.Elem()
+	}
+
+	if indirectVal.Kind() != reflect.Struct {
 		panic(errors.New("target must be struct pointer"))
 	}
-	if val.IsNil() {
-		panic(errors.New("target must be non-nil"))
-	}
 
-	val = val.Elem()
-	typ := val.Type()
+	indirectValType := indirectVal.Type()
 
-	for i, j := 0, typ.NumField(); i < j; i++ {
-		field := typ.Field(i)
+	for i, j := 0, indirectValType.NumField(); i < j; i++ {
+		field := indirectValType.Field(i)
 		if !field.IsExported() || field.Anonymous {
 			continue
 		}
 
-		fieldVal := val.Field(i)
+		fieldVal := indirectVal.Field(i)
 
 		var fieldName string
 		if v, ok := field.Tag.Lookup("json"); ok {
@@ -238,10 +246,10 @@ func valuesToStruct(values map[string]string, target interface{}) (err error) {
 			continue
 		}
 
-		value, ok := values[fieldName]
-		if !ok {
+		if !values.Has(fieldName) {
 			continue
 		}
+		value := values.Get(fieldName)
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 		switch ifc.(type) {
@@ -259,6 +267,77 @@ func valuesToStruct(values map[string]string, target interface{}) (err error) {
 			}
 		}
 	}
+
+	return nil
+}
+
+func structToValues(source interface{}, values *url.Values) (err error) {
+	if source == nil {
+		panic(errors.New("source is nil"))
+	}
+
+	val := reflect.ValueOf(source)
+
+	var indirectVal reflect.Value
+	if val.Kind() != reflect.Pointer {
+		indirectVal = val
+	} else {
+		if val.IsNil() {
+			panic(errors.New("source pointer is nil"))
+		}
+		indirectVal = val.Elem()
+	}
+
+	if indirectVal.Kind() != reflect.Struct {
+		panic(errors.New("source must be struct or struct pointer"))
+	}
+
+	indirectValType := indirectVal.Type()
+
+	result := make(url.Values)
+
+	for i, j := 0, indirectValType.NumField(); i < j; i++ {
+		field := indirectValType.Field(i)
+		if !field.IsExported() || field.Anonymous {
+			continue
+		}
+
+		fieldVal := indirectVal.Field(i)
+
+		var fieldName string
+		if v, ok := field.Tag.Lookup("json"); ok {
+			fieldName = strings.SplitN(v, ",", 2)[0]
+		} else {
+			fieldName = strings.ToLower(strings.ReplaceAll(field.Name, "_", ""))
+		}
+		if fieldName == "-" {
+			continue
+		}
+
+		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
+
+		if kind == reflect.Pointer && fieldVal.IsNil() {
+			continue
+		}
+
+		switch ifc.(type) {
+		case string, *string:
+			if kind != reflect.Pointer {
+				result.Set(fieldName, ifc.(string))
+			} else {
+				result.Set(fieldName, *ifc.(*string))
+			}
+		default:
+			var data []byte
+			data, err = json.Marshal(fieldVal.Interface())
+			if err != nil {
+				return fmt.Errorf("unable to marshal field %q value: %w", fieldName, err)
+			}
+			result.Set(fieldName, string(data))
+		}
+	}
+
+	*values = result
 
 	return nil
 }
