@@ -84,7 +84,7 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 	return copiedVal
 }
 
-func strToReflectValue(str string, val reflect.Value) (err error) {
+/*func strToReflectValue(str string, val reflect.Value) (err error) {
 	ifc, typ, kind := val.Interface(), val.Type(), val.Kind()
 	switch ifc.(type) {
 	case bool, *bool:
@@ -202,7 +202,7 @@ func strToReflectValue(str string, val reflect.Value) (err error) {
 		panic(fmt.Errorf("invalid type %s for value", typ))
 	}
 	return nil
-}
+}*/
 
 func valuesToStruct(values map[string]string, target interface{}) (err error) {
 	if target == nil {
@@ -238,10 +238,24 @@ func valuesToStruct(values map[string]string, target interface{}) (err error) {
 			continue
 		}
 
-		if value, ok := values[fieldName]; ok {
-			err = strToReflectValue(value, fieldVal)
+		value, ok := values[fieldName]
+		if !ok {
+			continue
+		}
+
+		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
+		switch ifc.(type) {
+		case string, *string:
+			x := value
+			if kind != reflect.Pointer {
+				fieldVal.Set(reflect.ValueOf(x))
+			} else {
+				fieldVal.Set(reflect.ValueOf(&x))
+			}
+		default:
+			err = json.Unmarshal([]byte(value), fieldVal.Addr().Interface())
 			if err != nil {
-				return fmt.Errorf("unable to set field %q value: %w", fieldName, err)
+				return fmt.Errorf("unable to unmarshal field %q value: %w", fieldName, err)
 			}
 		}
 	}
