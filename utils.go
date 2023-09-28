@@ -271,7 +271,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 	return nil
 }
 
-func structToValues(source interface{}, values *url.Values) (err error) {
+func structToValues(source interface{}) (values url.Values, err error) {
 	if source == nil {
 		panic(errors.New("source is nil"))
 	}
@@ -294,7 +294,7 @@ func structToValues(source interface{}, values *url.Values) (err error) {
 
 	indirectValType := indirectVal.Type()
 
-	result := make(url.Values)
+	values = make(url.Values)
 
 	for i, j := 0, indirectValType.NumField(); i < j; i++ {
 		field := indirectValType.Field(i)
@@ -323,21 +323,19 @@ func structToValues(source interface{}, values *url.Values) (err error) {
 		switch ifc.(type) {
 		case string, *string:
 			if kind != reflect.Pointer {
-				result.Set(fieldName, ifc.(string))
+				values.Set(fieldName, ifc.(string))
 			} else {
-				result.Set(fieldName, *ifc.(*string))
+				values.Set(fieldName, *ifc.(*string))
 			}
 		default:
 			var data []byte
 			data, err = json.Marshal(fieldVal.Interface())
 			if err != nil {
-				return fmt.Errorf("unable to marshal field %q value: %w", fieldName, err)
+				return values, fmt.Errorf("unable to marshal field %q value: %w", fieldName, err)
 			}
-			result.Set(fieldName, string(data))
+			values.Set(fieldName, string(data))
 		}
 	}
 
-	*values = result
-
-	return nil
+	return values, nil
 }
