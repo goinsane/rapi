@@ -1,6 +1,7 @@
 package rapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -24,7 +25,12 @@ type Requester struct {
 func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (result *Response, err error) {
 	req := (&http.Request{
 		Method: r.method,
-		URL:    r.url,
+		URL: &url.URL{
+			Scheme:   r.url.Scheme,
+			Host:     r.url.Host,
+			Path:     r.url.Path,
+			RawQuery: "",
+		},
 		Header: r.header.Clone(),
 	}).WithContext(ctx)
 
@@ -35,13 +41,24 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 		req.Header[k] = v
 	}
 
-	data, err := json.Marshal(in)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal input: %w", err)
+	var data []byte
+	if r.method == http.MethodHead || r.method == http.MethodGet {
+		var values url.Values
+		values, err = structToValues(in)
+		if err != nil {
+			return nil, fmt.Errorf("unable to set input to values: %w", err)
+		}
+		req.URL.RawQuery = values.Encode()
+	} else {
+		data, err = json.Marshal(in)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal input: %w", err)
+		}
+		data = append(data, '\n')
+		req.Header.Set("Content-Type", "application/json; charset=utf-8")
+		req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 	}
-	data = append(data, '\n')
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-	req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
+	req.Body = io.NopCloser(bytes.NewBuffer(data))
 
 	resp, err := r.factory.Client.Do(req)
 	if err != nil {
