@@ -149,9 +149,6 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	inVal := reflect.ValueOf(h.in)
-	copiedInVal := copyReflectValue(inVal)
-
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "" {
 		err = validateJSONContentType(contentType)
@@ -161,6 +158,9 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	inVal := reflect.ValueOf(h.in)
+	copiedInVal := copyReflectValue(inVal)
 
 	if contentType == "" && (r.Method == http.MethodHead || r.Method == http.MethodGet) {
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
@@ -181,12 +181,13 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			httpError(r, w, "unable to read request body", http.StatusBadRequest)
 			return
 		}
-
-		err = json.Unmarshal(data, copiedInVal.Interface())
-		if err != nil {
-			h.patternHandler.handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
-			httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
-			return
+		if len(data) > 0 {
+			err = json.Unmarshal(data, copiedInVal.Interface())
+			if err != nil {
+				h.patternHandler.handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
+				httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
+				return
+			}
 		}
 	}
 
