@@ -9,7 +9,8 @@ type Request struct {
 
 type Response struct {
 	*http.Response
-	Out interface{}
+	Data []byte
+	Out  interface{}
 }
 
 type DoFunc func(req *Request, respHeader http.Header, send SendFunc)

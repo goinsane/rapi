@@ -88,6 +88,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	if err != nil {
 		return result, fmt.Errorf("unable to read response body: %w", err)
 	}
+	result.Data = data
 
 	isErr := resp.StatusCode != http.StatusOK && r.errOut != nil
 
