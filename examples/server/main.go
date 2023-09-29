@@ -17,7 +17,7 @@ func main() {
 		},
 	}
 
-	handler.Handle("/").Register("", new(interface{}),
+	handler.Handle("/").Register("", struct{}{},
 		func(req *rapi.Request, header http.Header, send rapi.SendFunc) {
 			send(&messages.ErrorResponse{
 				ErrorMsg: http.StatusText(http.StatusNotImplemented),
