@@ -11,16 +11,20 @@ import (
 func main() {
 	var err error
 
-	handler := rapi.NewHandler(rapi.WithOnError(func(err error, request *http.Request) {
+	handler := rapi.NewHandler(rapi.WithOnError(func(err error, req *http.Request) {
 		log.Print(err)
 	}))
 
-	handler.Handle("/").Register("", struct{}{},
-		func(req *rapi.Request, header http.Header, send rapi.SendFunc) {
-			send(&messages.ErrorResponse{
-				ErrorMsg: http.StatusText(http.StatusNotImplemented),
-			}, http.StatusNotImplemented)
-		})
+	unimplemented := func(req *rapi.Request, header http.Header, send rapi.SendFunc) {
+		send(&messages.ErrorResponse{
+			ErrorMsg: http.StatusText(http.StatusNotImplemented),
+		}, http.StatusNotImplemented)
+	}
+
+	handler.Handle("/").
+		Register("", new(interface{}), unimplemented).
+		Register("HEAD", struct{}{}, unimplemented).
+		Register("GET", struct{}{}, unimplemented)
 
 	handler.Handle("/ping").Register("GET", new(messages.PingRequest),
 		func(req *rapi.Request, respHeader http.Header, send rapi.SendFunc) {
