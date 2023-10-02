@@ -19,7 +19,7 @@ type Handler struct {
 
 func NewHandler(opts ...HandlerOption) (h *Handler) {
 	h = &Handler{
-		options:  &handlerOptions{},
+		options:  newHandlerOptions(),
 		serveMux: http.NewServeMux(),
 	}
 	newJoinHandlerOption(opts...).apply(h.options)

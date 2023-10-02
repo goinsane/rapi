@@ -42,7 +42,14 @@ type handlerOptions struct {
 	MaxRequestBodySize int64
 }
 
+func newHandlerOptions() (o *handlerOptions) {
+	return &handlerOptions{}
+}
+
 func (o *handlerOptions) Clone() *handlerOptions {
+	if o == nil {
+		return nil
+	}
 	result := &handlerOptions{
 		OnError:            o.OnError,
 		Middleware:         make([]DoFunc, len(o.Middleware)),
