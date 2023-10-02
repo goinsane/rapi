@@ -13,83 +13,62 @@ import (
 )
 
 type Handler struct {
-	Middleware         []DoFunc
-	MaxRequestBodySize int64
-	OnError            func(error, *http.Request)
+	options  *handlerOptions
+	serveMux *http.ServeMux
+}
 
-	mu              sync.RWMutex
-	serveMux        *http.ServeMux
-	patternHandlers map[string]*PatternHandler
+func NewHandler(opts ...HandlerOption) (h *Handler) {
+	h = &Handler{
+		options:  &handlerOptions{},
+		serveMux: http.NewServeMux(),
+	}
+	newJoinHandlerOption(opts...).apply(h.options)
+	return h
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.mu.RLock()
-	serveMux := h.serveMux
-	h.mu.RUnlock()
-	if serveMux == nil {
-		return
-	}
-	serveMux.ServeHTTP(w, r)
+	h.serveMux.ServeHTTP(w, r)
 }
 
-func (h *Handler) Handle(pattern string, middleware ...DoFunc) *PatternHandler {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if h.serveMux == nil {
-		h.serveMux = http.NewServeMux()
-	}
-
-	if h.patternHandlers == nil {
-		h.patternHandlers = make(map[string]*PatternHandler)
-	}
-
-	patternHandler := h.patternHandlers[pattern]
-	if patternHandler == nil {
-		patternHandler = &PatternHandler{
-			handler:    h,
-			middleware: middleware,
-		}
-		h.serveMux.Handle(pattern, patternHandler)
-		h.patternHandlers[pattern] = patternHandler
-	}
-
-	return patternHandler
-}
-
-func (h *Handler) onError(err error, r *http.Request) {
-	if h.OnError == nil {
-		return
-	}
-	h.OnError(err, r)
+func (h *Handler) Handle(pattern string, opts ...HandlerOption) *PatternHandler {
+	ph := newPatternHandler(h.options, opts...)
+	h.serveMux.Handle(pattern, ph)
+	return ph
 }
 
 type PatternHandler struct {
-	handler    *Handler
-	middleware []DoFunc
-
 	mu             sync.RWMutex
-	methodHandlers map[string]*_MethodHandler
+	options        *handlerOptions
+	methodHandlers map[string]*methodHandler
+}
+
+func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *PatternHandler) {
+	h = &PatternHandler{
+		options:        options.Clone(),
+		methodHandlers: make(map[string]*methodHandler),
+	}
+	newJoinHandlerOption(opts...).apply(h.options)
+	return h
 }
 
 func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mu.RLock()
-	ph := h.methodHandlers[r.Method]
-	if ph == nil {
-		ph = h.methodHandlers[""]
+	mh := h.methodHandlers[r.Method]
+	if mh == nil {
+		mh = h.methodHandlers[""]
 	}
 	h.mu.RUnlock()
 
-	if ph == nil {
-		h.handler.onError(fmt.Errorf("method %s not allowed", r.Method), r)
+	if mh == nil {
+		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
 		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
-	ph.ServeHTTP(w, r)
+	mh.ServeHTTP(w, r)
 }
 
-func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, middleware ...DoFunc) *PatternHandler {
+func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) *PatternHandler {
 	if in == nil {
 		panic("input is nil")
 	}
@@ -99,34 +78,33 @@ func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, midd
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.methodHandlers == nil {
-		h.methodHandlers = make(map[string]*_MethodHandler)
-	}
-
-	ph := h.methodHandlers[method]
-	if ph != nil {
+	mh := h.methodHandlers[method]
+	if mh != nil {
 		panic(fmt.Errorf("method %q already registered", method))
 	}
-
-	ph = &_MethodHandler{
-		patternHandler: h,
-		in:             in,
-		do:             do,
-		middleware:     middleware,
-	}
-	h.methodHandlers[method] = ph
+	mh = newMethodhandler(in, do, h.options, opts...)
+	h.methodHandlers[method] = mh
 
 	return h
 }
 
-type _MethodHandler struct {
-	patternHandler *PatternHandler
-	in             interface{}
-	do             DoFunc
-	middleware     []DoFunc
+type methodHandler struct {
+	options *handlerOptions
+	in      interface{}
+	do      DoFunc
 }
 
-func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func newMethodhandler(in interface{}, do DoFunc, options *handlerOptions, opts ...HandlerOption) (h *methodHandler) {
+	h = &methodHandler{
+		options: options.Clone(),
+		in:      in,
+		do:      do,
+	}
+	newJoinHandlerOption(opts...).apply(h.options)
+	return h
+}
+
+func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	defer func(Body io.ReadCloser) {
@@ -144,7 +122,7 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		err = sendJSONResponse(w, out, code)
 		if err != nil {
-			h.patternHandler.handler.onError(fmt.Errorf("unable to send json response: %w", err), r)
+			h.options.PerformError(fmt.Errorf("unable to send json response: %w", err), r)
 			return
 		}
 	}
@@ -153,7 +131,7 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
-			h.patternHandler.handler.onError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
+			h.options.PerformError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
 			httpError(r, w, "invalid content type", http.StatusBadRequest)
 			return
 		}
@@ -165,26 +143,26 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if contentType == "" && (r.Method == http.MethodHead || r.Method == http.MethodGet) {
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
-			h.patternHandler.handler.onError(fmt.Errorf("invalid query: %w", err), r)
+			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
 			httpError(r, w, "invalid query", http.StatusBadRequest)
 			return
 		}
 	} else {
 		var rd io.Reader = r.Body
-		if h.patternHandler.handler.MaxRequestBodySize > 0 {
-			rd = io.LimitReader(r.Body, h.patternHandler.handler.MaxRequestBodySize)
+		if h.options.MaxRequestBodySize > 0 {
+			rd = io.LimitReader(r.Body, h.options.MaxRequestBodySize)
 		}
 		var data []byte
 		data, err = io.ReadAll(rd)
 		if err != nil {
-			h.patternHandler.handler.onError(fmt.Errorf("unable to read request body: %w", err), r)
+			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), r)
 			httpError(r, w, "unable to read request body", http.StatusBadRequest)
 			return
 		}
 		if len(data) > 0 {
 			err = json.Unmarshal(data, copiedInVal.Interface())
 			if err != nil {
-				h.patternHandler.handler.onError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
+				h.options.PerformError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
 				httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
 				return
 			}
@@ -203,21 +181,7 @@ func (h *_MethodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		In:      in,
 	}
 
-	for _, m := range h.patternHandler.handler.Middleware {
-		m(req, w.Header(), send)
-		if sent != 0 {
-			return
-		}
-	}
-
-	for _, m := range h.patternHandler.middleware {
-		m(req, w.Header(), send)
-		if sent != 0 {
-			return
-		}
-	}
-
-	for _, m := range h.middleware {
+	for _, m := range h.options.Middleware {
 		m(req, w.Header(), send)
 		if sent != 0 {
 			return
