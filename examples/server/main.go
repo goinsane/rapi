@@ -11,11 +11,9 @@ import (
 func main() {
 	var err error
 
-	handler := &rapi.Handler{
-		OnError: func(err error, request *http.Request) {
-			log.Print(err)
-		},
-	}
+	handler := rapi.NewHandler(rapi.WithOnError(func(err error, request *http.Request) {
+		log.Print(err)
+	}))
 
 	handler.Handle("/").Register("", struct{}{},
 		func(req *rapi.Request, header http.Header, send rapi.SendFunc) {
