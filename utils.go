@@ -61,6 +61,10 @@ func validateJSONContentType(contentType string) error {
 }
 
 func copyReflectValue(val reflect.Value) reflect.Value {
+	if !val.IsValid() {
+		return reflect.ValueOf(new(interface{}))
+	}
+
 	var indirectVal reflect.Value
 	if val.Kind() != reflect.Pointer {
 		indirectVal = val

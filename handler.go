@@ -69,10 +69,6 @@ func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) *PatternHandler {
-	if in == nil {
-		panic("input is nil")
-	}
-
 	method = strings.ToUpper(method)
 
 	h.mu.Lock()

@@ -22,7 +22,7 @@ func main() {
 	}
 
 	handler.Handle("/").
-		Register("", new(interface{}), unimplemented).
+		Register("", nil, unimplemented).
 		Register("HEAD", struct{}{}, unimplemented).
 		Register("GET", struct{}{}, unimplemented)
 
