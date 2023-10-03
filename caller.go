@@ -41,22 +41,19 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 		req.Header[k] = v
 	}
 
-	inVal := reflect.ValueOf(in)
-	inValType := inVal.Type()
-	isInValStruct := inVal.IsValid() &&
-		(inValType.Kind() == reflect.Struct || (inValType.Kind() == reflect.Pointer &&
-			inValType.Elem().Kind() == reflect.Struct))
-
 	var data []byte
-	if isInValStruct && (c.method == http.MethodHead || c.method == http.MethodGet) {
-		var values url.Values
-		values, err = structToValues(in)
-		if err != nil {
-			return nil, fmt.Errorf("unable to set input to values: %w", err)
-		}
-		req.URL.RawQuery = values.Encode()
-	} else {
-		if inVal.IsValid() {
+	if in != nil {
+		if inValType := reflect.ValueOf(in).Type(); (inValType.Kind() == reflect.Struct ||
+			(inValType.Kind() == reflect.Pointer &&
+				inValType.Elem().Kind() == reflect.Struct)) &&
+			(c.method == http.MethodHead || c.method == http.MethodGet) {
+			var values url.Values
+			values, err = structToValues(in)
+			if err != nil {
+				return nil, fmt.Errorf("unable to set input to values: %w", err)
+			}
+			req.URL.RawQuery = values.Encode()
+		} else {
 			data, err = json.Marshal(in)
 			if err != nil {
 				return nil, fmt.Errorf("unable to marshal input: %w", err)
