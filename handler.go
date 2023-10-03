@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Handler struct {
@@ -169,8 +170,19 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if h.options.MaxRequestBodySize > 0 {
 			rd = io.LimitReader(r.Body, h.options.MaxRequestBodySize)
 		}
+		completed := make(chan struct{})
+		if h.options.RequestTimeout > 0 {
+			go func() {
+				select {
+				case <-time.After(h.options.RequestTimeout):
+					_ = r.Body.Close()
+				case <-completed:
+				}
+			}()
+		}
 		var data []byte
 		data, err = io.ReadAll(rd)
+		close(completed)
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), r)
 			httpError(r, w, "unable to read request body", http.StatusBadRequest)

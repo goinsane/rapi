@@ -1,6 +1,9 @@
 package rapi
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type HandlerOption interface {
 	apply(*handlerOptions)
@@ -40,6 +43,7 @@ type handlerOptions struct {
 	OnError            func(error, *http.Request)
 	Middleware         []DoFunc
 	MaxRequestBodySize int64
+	RequestTimeout     time.Duration
 }
 
 func newHandlerOptions() (o *handlerOptions) {
@@ -80,5 +84,11 @@ func WithMiddleware(middleware ...DoFunc) HandlerOption {
 func WithMaxRequestBodySize(maxRequestBodySize int64) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.MaxRequestBodySize = maxRequestBodySize
+	})
+}
+
+func WithRequestTimeout(requestTimeout time.Duration) HandlerOption {
+	return newFuncHandlerOption(func(options *handlerOptions) {
+		options.RequestTimeout = requestTimeout
 	})
 }
