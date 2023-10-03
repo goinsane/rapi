@@ -129,11 +129,12 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 type Client struct {
 	Client              *http.Client
 	URL                 *url.URL
+	Header              http.Header
 	MaxResponseBodySize int64
 }
 
 func (c *Client) Caller(method string, endpoint string, header http.Header, out interface{}, errOut error) *Caller {
-	return &Caller{
+	result := &Caller{
 		client: c,
 		method: method,
 		url: &url.URL{
@@ -142,8 +143,15 @@ func (c *Client) Caller(method string, endpoint string, header http.Header, out 
 			Path:     path.Join(c.URL.Path, endpoint),
 			RawQuery: "",
 		},
-		header: header.Clone(),
+		header: c.Header.Clone(),
 		out:    out,
 		errOut: errOut,
 	}
+	if result.header == nil {
+		result.header = http.Header{}
+	}
+	for k, v := range header.Clone() {
+		result.header[k] = v
+	}
+	return result
 }
