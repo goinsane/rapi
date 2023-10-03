@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -16,15 +17,14 @@ func main() {
 	}))
 
 	unimplemented := func(req *rapi.Request, header http.Header, send rapi.SendFunc) {
+		fmt.Println(req.In)
 		send(&messages.ErrorResponse{
 			ErrorMsg: http.StatusText(http.StatusNotImplemented),
 		}, http.StatusNotImplemented)
 	}
 
 	handler.Handle("/").
-		Register("", nil, unimplemented).
-		Register("HEAD", struct{}{}, unimplemented).
-		Register("GET", struct{}{}, unimplemented)
+		Register("", nil, unimplemented)
 
 	handler.Handle("/ping").Register("GET", new(messages.PingRequest),
 		func(req *rapi.Request, respHeader http.Header, send rapi.SendFunc) {
