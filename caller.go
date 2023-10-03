@@ -132,7 +132,7 @@ type Client struct {
 	MaxResponseBodySize int64
 }
 
-func (c *Client) Get(method string, endpoint string, header http.Header, out interface{}, errOut error) *Caller {
+func (c *Client) Caller(method string, endpoint string, header http.Header, out interface{}, errOut error) *Caller {
 	return &Caller{
 		client: c,
 		method: method,
