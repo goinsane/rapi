@@ -133,6 +133,24 @@ type Client struct {
 	MaxResponseBodySize int64
 }
 
+func (c *Client) Clone() *Client {
+	if c == nil {
+		return nil
+	}
+	result := &Client{
+		Client: c.Client,
+		URL: &url.URL{
+			Scheme:   c.URL.Scheme,
+			Host:     c.URL.Host,
+			Path:     c.URL.Path,
+			RawQuery: "",
+		},
+		Header:              c.Header.Clone(),
+		MaxResponseBodySize: c.MaxResponseBodySize,
+	}
+	return result
+}
+
 func (c *Client) Caller(method string, endpoint string, header http.Header, out interface{}, errOut error) *Caller {
 	result := &Caller{
 		client: c,
