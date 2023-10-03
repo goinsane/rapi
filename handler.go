@@ -39,9 +39,9 @@ func (h *Handler) Handle(pattern string, opts ...HandlerOption) *PatternHandler 
 }
 
 type PatternHandler struct {
-	mu             sync.RWMutex
-	options        *handlerOptions
-	methodHandlers map[string]*methodHandler
+	options          *handlerOptions
+	methodHandlersMu sync.RWMutex
+	methodHandlers   map[string]*methodHandler
 }
 
 func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *PatternHandler) {
@@ -54,12 +54,12 @@ func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *Patte
 }
 
 func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.mu.RLock()
+	h.methodHandlersMu.RLock()
 	mh := h.methodHandlers[r.Method]
 	if mh == nil {
 		mh = h.methodHandlers[""]
 	}
-	h.mu.RUnlock()
+	h.methodHandlersMu.RUnlock()
 
 	if mh == nil {
 		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
@@ -73,8 +73,8 @@ func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) *PatternHandler {
 	method = strings.ToUpper(method)
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.methodHandlersMu.Lock()
+	defer h.methodHandlersMu.Unlock()
 
 	mh := h.methodHandlers[method]
 	if mh != nil {
