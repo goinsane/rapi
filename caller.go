@@ -41,8 +41,14 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 		req.Header[k] = v
 	}
 
+	inVal := reflect.ValueOf(in)
+	inValType := inVal.Type()
+	isInValStruct := inVal.IsValid() &&
+		(inValType.Kind() == reflect.Struct || (inValType.Kind() == reflect.Pointer &&
+			inValType.Elem().Kind() == reflect.Struct))
+
 	var data []byte
-	if c.method == http.MethodHead || c.method == http.MethodGet {
+	if isInValStruct && (c.method == http.MethodHead || c.method == http.MethodGet) {
 		var values url.Values
 		values, err = structToValues(in)
 		if err != nil {
@@ -50,13 +56,15 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 		}
 		req.URL.RawQuery = values.Encode()
 	} else {
-		data, err = json.Marshal(in)
-		if err != nil {
-			return nil, fmt.Errorf("unable to marshal input: %w", err)
+		if inVal.IsValid() {
+			data, err = json.Marshal(in)
+			if err != nil {
+				return nil, fmt.Errorf("unable to marshal input: %w", err)
+			}
+			data = append(data, '\n')
+			req.Header.Set("Content-Type", "application/json; charset=utf-8")
+			req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 		}
-		data = append(data, '\n')
-		req.Header.Set("Content-Type", "application/json; charset=utf-8")
-		req.Header.Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 	}
 	req.Body = io.NopCloser(bytes.NewBuffer(data))
 
@@ -126,9 +134,6 @@ type Client struct {
 }
 
 func (c *Client) Get(method string, endpoint string, header http.Header, out interface{}, errOut error) *Caller {
-	if out == nil {
-		panic("output is nil")
-	}
 	return &Caller{
 		client: c,
 		method: method,
