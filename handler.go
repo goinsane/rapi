@@ -136,14 +136,13 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	inVal := reflect.ValueOf(h.in)
 	copiedInVal := copyReflectValue(inVal)
 
-	if contentType == "" && (r.Method == http.MethodHead || r.Method == http.MethodGet) {
-		if copiedInVal.Elem().Kind() == reflect.Struct {
-			err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
-			if err != nil {
-				h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
-				httpError(r, w, "invalid query", http.StatusBadRequest)
-				return
-			}
+	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
+		(r.Method == http.MethodHead || r.Method == http.MethodGet) {
+		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
+		if err != nil {
+			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
+			httpError(r, w, "invalid query", http.StatusBadRequest)
+			return
 		}
 	} else {
 		var rd io.Reader = r.Body
