@@ -1,12 +1,14 @@
 package rapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -109,16 +111,34 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var sent int32
 	send := func(out interface{}, code int) {
+		var err error
+
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic(errors.New("already sent"))
 		}
+
 		if r.Method == http.MethodHead {
 			w.WriteHeader(code)
 			return
 		}
-		err = sendJSONResponse(w, out, code)
+
+		var data []byte
+		if out != nil {
+			data, err = json.Marshal(out)
+			if err != nil {
+				h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), r)
+				httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+			data = append(data, '\n')
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
+		}
+
+		w.WriteHeader(code)
+		_, err = io.Copy(w, bytes.NewBuffer(data))
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to send json response: %w", err), r)
+			h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
 			return
 		}
 	}

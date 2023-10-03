@@ -1,35 +1,15 @@
 package rapi
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"reflect"
-	"strconv"
 	"strings"
 )
-
-func sendJSONResponse(w http.ResponseWriter, out interface{}, code int) error {
-	data, err := json.Marshal(out)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return fmt.Errorf("unable to marshal output: %w", err)
-	}
-	data = append(data, '\n')
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
-	w.WriteHeader(code)
-	_, err = io.Copy(w, bytes.NewBuffer(data))
-	if err != nil {
-		return fmt.Errorf("unable to write response body: %w", err)
-	}
-	return nil
-}
 
 func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 	if r.Method == http.MethodHead {
