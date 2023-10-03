@@ -13,25 +13,25 @@ import (
 	"strconv"
 )
 
-type Requester struct {
-	factory *Factory
-	method  string
-	url     *url.URL
-	header  http.Header
-	out     interface{}
-	errOut  error
+type Caller struct {
+	client *Client
+	method string
+	url    *url.URL
+	header http.Header
+	out    interface{}
+	errOut error
 }
 
-func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) (result *Response, err error) {
+func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (result *Response, err error) {
 	req := (&http.Request{
-		Method: r.method,
+		Method: c.method,
 		URL: &url.URL{
-			Scheme:   r.url.Scheme,
-			Host:     r.url.Host,
-			Path:     r.url.Path,
+			Scheme:   c.url.Scheme,
+			Host:     c.url.Host,
+			Path:     c.url.Path,
 			RawQuery: "",
 		},
-		Header: r.header.Clone(),
+		Header: c.header.Clone(),
 	}).WithContext(ctx)
 
 	if req.Header == nil {
@@ -42,7 +42,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 
 	var data []byte
-	if r.method == http.MethodHead || r.method == http.MethodGet {
+	if c.method == http.MethodHead || c.method == http.MethodGet {
 		var values url.Values
 		values, err = structToValues(in)
 		if err != nil {
@@ -60,7 +60,7 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 	req.Body = io.NopCloser(bytes.NewBuffer(data))
 
-	resp, err := r.factory.Client.Do(req)
+	resp, err := c.client.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}
@@ -81,8 +81,8 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 
 	var rd io.Reader = resp.Body
-	if r.factory.MaxResponseBodySize > 0 {
-		rd = io.LimitReader(resp.Body, r.factory.MaxResponseBodySize)
+	if c.client.MaxResponseBodySize > 0 {
+		rd = io.LimitReader(resp.Body, c.client.MaxResponseBodySize)
 	}
 	data, err = io.ReadAll(rd)
 	if err != nil {
@@ -90,11 +90,11 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	}
 	result.Data = data
 
-	isErr := resp.StatusCode != http.StatusOK && r.errOut != nil
+	isErr := resp.StatusCode != http.StatusOK && c.errOut != nil
 
-	outVal := reflect.ValueOf(r.out)
+	outVal := reflect.ValueOf(c.out)
 	if isErr {
-		outVal = reflect.ValueOf(r.errOut)
+		outVal = reflect.ValueOf(c.errOut)
 	}
 	copiedOutVal := copyReflectValue(outVal)
 
@@ -119,23 +119,23 @@ func (r *Requester) Do(ctx context.Context, header http.Header, in interface{}) 
 	return result, nil
 }
 
-type Factory struct {
+type Client struct {
 	Client              *http.Client
 	URL                 *url.URL
 	MaxResponseBodySize int64
 }
 
-func (f *Factory) Get(method string, endpoint string, header http.Header, out interface{}, errOut error) *Requester {
+func (c *Client) Get(method string, endpoint string, header http.Header, out interface{}, errOut error) *Caller {
 	if out == nil {
 		panic("output is nil")
 	}
-	return &Requester{
-		factory: f,
-		method:  method,
+	return &Caller{
+		client: c,
+		method: method,
 		url: &url.URL{
-			Scheme:   f.URL.Scheme,
-			Host:     f.URL.Host,
-			Path:     path.Join(f.URL.Path, endpoint),
+			Scheme:   c.URL.Scheme,
+			Host:     c.URL.Host,
+			Path:     path.Join(c.URL.Path, endpoint),
 			RawQuery: "",
 		},
 		header: header.Clone(),
