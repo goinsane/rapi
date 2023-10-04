@@ -229,7 +229,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	do := []DoFunc{
 		func(req *Request, send SendFunc) {
-			if sent == 0 {
+			if sent == 0 && h.do != nil {
 				h.do(req, send)
 			}
 		},
@@ -238,7 +238,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		m := h.options.Middleware[i]
 		l := len(do)
 		do = append(do, func(req *Request, send SendFunc) {
-			if sent == 0 {
+			if sent == 0 && m != nil {
 				m(req, send, do[l-1])
 			}
 		})
