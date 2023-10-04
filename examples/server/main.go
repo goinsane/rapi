@@ -39,24 +39,26 @@ func main() {
 			})
 
 	handler.Handle("/test").
-		Register("GET", &messages.TestRequest{}, func(req *rapi.Request, send rapi.SendFunc) {
-			in := req.In.(*messages.TestRequest)
-			send(&messages.TestReply{X: -in.X}, nil, http.StatusOK)
-		}, rapi.WithMiddleware(
-			func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
+		Register("GET", &messages.TestRequest{},
+			func(req *rapi.Request, send rapi.SendFunc) {
 				in := req.In.(*messages.TestRequest)
-				if in.X == 1 {
-					send(&messages.TestReply{X: in.X}, nil, http.StatusOK)
-				}
-				do(req, send)
-			},
-			func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
-				in := req.In.(*messages.TestRequest)
-				if in.X == 2 {
-					send(&messages.TestReply{X: in.X}, nil, http.StatusOK)
-				}
-				do(req, send)
-			}))
+				send(&messages.TestReply{X: -in.X}, nil, http.StatusOK)
+			}, rapi.WithMiddleware(
+				func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
+					in := req.In.(*messages.TestRequest)
+					if in.X == 1 {
+						send(&messages.TestReply{X: in.X}, nil, http.StatusOK)
+					}
+					do(req, send)
+				},
+				func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
+					in := req.In.(*messages.TestRequest)
+					if in.X == 2 {
+						send(&messages.TestReply{X: in.X}, nil, http.StatusOK)
+					}
+					do(req, send)
+				},
+			))
 
 	err = http.ListenAndServe(":8080", handler)
 	if err != nil {
