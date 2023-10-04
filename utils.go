@@ -15,6 +15,12 @@ import (
 	"strings"
 )
 
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error { return nil }
+
 func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 	if r.Method == http.MethodHead {
 		w.WriteHeader(code)
@@ -274,9 +280,3 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteClose
 
 	return w1, nil
 }
-
-type nopWriteCloser struct {
-	io.Writer
-}
-
-func (nopWriteCloser) Close() error { return nil }
