@@ -124,6 +124,13 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 			} else {
 				fieldVal.Set(reflect.ValueOf(&x))
 			}
+		case []byte, *[]byte:
+			x := []byte(value)
+			if kind != reflect.Pointer {
+				fieldVal.Set(reflect.ValueOf(x))
+			} else {
+				fieldVal.Set(reflect.ValueOf(&x))
+			}
 		default:
 			err = json.Unmarshal([]byte(value), fieldVal.Addr().Interface())
 			if err != nil {
@@ -190,6 +197,12 @@ func structToValues(source interface{}) (values url.Values, err error) {
 				values.Set(fieldName, ifc.(string))
 			} else {
 				values.Set(fieldName, *ifc.(*string))
+			}
+		case []byte, *[]byte:
+			if kind != reflect.Pointer {
+				values.Set(fieldName, string(ifc.([]byte)))
+			} else {
+				values.Set(fieldName, string(*ifc.(*[]byte)))
 			}
 		default:
 			var data []byte
