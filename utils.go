@@ -1,13 +1,17 @@
 package rapi
 
 import (
+	"compress/flate"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -215,4 +219,54 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	}
 
 	return values, nil
+}
+
+func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.Writer, err error) {
+	defer func() {
+		if err == nil && w != wr {
+			w.Header().Del("Content-Length")
+		}
+	}()
+
+	for _, opt := range ParseHeaderOptions(r.Header.Get("Accept-Encoding")) {
+		var q *float64
+		if f, e := strconv.ParseFloat(opt.Map["q"], 64); e == nil {
+			q = &f
+		} else {
+			return nil, fmt.Errorf("quality level parse error: %w", e)
+		}
+
+		switch key := opt.KeyVals[0].Key; key {
+		case "gzip":
+			level := gzip.DefaultCompression
+			if q != nil {
+				newLevel := int(*q)
+				if gzip.NoCompression <= newLevel && newLevel <= gzip.BestCompression {
+					level = newLevel
+				} else {
+					return nil, fmt.Errorf("invalid quality level %d", newLevel)
+				}
+			}
+			w.Header().Set("Content-Encoding", key)
+			wr, _ = gzip.NewWriterLevel(w, level)
+			return wr, nil
+
+		case "deflate":
+			level := flate.DefaultCompression
+			if q != nil {
+				newLevel := int(*q)
+				if flate.NoCompression <= newLevel && newLevel <= flate.BestCompression {
+					level = newLevel
+				} else {
+					return nil, fmt.Errorf("invalid quality level %d", newLevel)
+				}
+			}
+			w.Header().Set("Content-Encoding", key)
+			wr, _ = flate.NewWriter(w, level)
+			return wr, nil
+
+		}
+	}
+
+	return w, nil
 }
