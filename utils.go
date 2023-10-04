@@ -230,10 +230,12 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.Writer, er
 
 	for _, opt := range ParseHeaderOptions(r.Header.Get("Accept-Encoding")) {
 		var q *float64
-		if f, e := strconv.ParseFloat(opt.Map["q"], 64); e == nil {
-			q = &f
-		} else {
-			return nil, fmt.Errorf("quality level parse error: %w", e)
+		if s, ok := opt.Map["q"]; ok {
+			if f, e := strconv.ParseFloat(s, 64); e == nil {
+				q = &f
+			} else {
+				return nil, fmt.Errorf("quality level parse error: %w", e)
+			}
 		}
 
 		switch key := opt.KeyVals[0].Key; key {
