@@ -141,6 +141,9 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
 			return
 		}
+		defer func(wr io.WriteCloser) {
+			_ = wr.Close()
+		}(wr)
 
 		w.WriteHeader(code)
 

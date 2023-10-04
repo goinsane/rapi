@@ -221,9 +221,11 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	return values, nil
 }
 
-func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.Writer, err error) {
+func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteCloser, err error) {
+	w1 := nopWriteCloser{w}
+
 	defer func() {
-		if err == nil && w != wr {
+		if err == nil && w1 != wr {
 			w.Header().Del("Content-Length")
 		}
 	}()
@@ -270,5 +272,11 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.Writer, er
 		}
 	}
 
-	return w, nil
+	return w1, nil
 }
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error { return nil }
