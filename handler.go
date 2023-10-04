@@ -118,10 +118,8 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			panic(errors.New("already sent"))
 		}
 
-		for k, v := range header {
-			for _, v2 := range v {
-				w.Header().Add(k, v2)
-			}
+		for k, v := range header.Clone() {
+			w.Header()[k] = v
 		}
 
 		if r.Method == http.MethodHead {
