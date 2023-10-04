@@ -15,3 +15,11 @@ type PingRequest struct {
 type PingReply struct {
 	Payload string
 }
+
+type TestRequest struct {
+	X int
+}
+
+type TestReply struct {
+	X int
+}
