@@ -137,7 +137,14 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.WriteHeader(code)
-		_, err = io.Copy(w, bytes.NewBuffer(data))
+
+		wr, err := getContentEncoder(w, r)
+		if err != nil {
+			h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
+			return
+		}
+
+		_, err = io.Copy(wr, bytes.NewBuffer(data))
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
 			return
