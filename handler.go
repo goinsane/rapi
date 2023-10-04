@@ -136,10 +136,13 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 		}
 
-		wr, err := getContentEncoder(w, r)
-		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
-			return
+		var wr io.WriteCloser = nopWriteCloser{w}
+		if h.options.AllowEncoding {
+			wr, err = getContentEncoder(w, r)
+			if err != nil {
+				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
+				return
+			}
 		}
 		defer func(wr io.WriteCloser) {
 			_ = wr.Close()

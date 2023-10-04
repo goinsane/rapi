@@ -44,10 +44,13 @@ type handlerOptions struct {
 	Middleware         []DoFunc
 	MaxRequestBodySize int64
 	RequestTimeout     time.Duration
+	AllowEncoding      bool
 }
 
 func newHandlerOptions() (o *handlerOptions) {
-	return &handlerOptions{}
+	return &handlerOptions{
+		AllowEncoding: true,
+	}
 }
 
 func (o *handlerOptions) Clone() *handlerOptions {
@@ -90,5 +93,11 @@ func WithMaxRequestBodySize(maxRequestBodySize int64) HandlerOption {
 func WithRequestTimeout(requestTimeout time.Duration) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.RequestTimeout = requestTimeout
+	})
+}
+
+func WithAllowEncoding(allowEncoding bool) HandlerOption {
+	return newFuncHandlerOption(func(options *handlerOptions) {
+		options.AllowEncoding = allowEncoding
 	})
 }
