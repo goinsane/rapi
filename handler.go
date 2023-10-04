@@ -111,11 +111,17 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}(r.Body)
 
 	var sent int32
-	send := func(out interface{}, code int) {
+	send := func(out interface{}, header http.Header, code int) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic(errors.New("already sent"))
+		}
+
+		for k, v := range header.Clone() {
+			for _, v2 := range v {
+				w.Header().Add(k, v2)
+			}
 		}
 
 		if r.Method == http.MethodHead {
@@ -224,11 +230,11 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, m := range h.options.Middleware {
-		m(req, w.Header(), send)
+		m(req, send)
 		if sent != 0 {
 			return
 		}
 	}
 
-	h.do(req, w.Header(), send)
+	h.do(req, send)
 }

@@ -14,5 +14,5 @@ type Response struct {
 	Out  interface{}
 }
 
-type DoFunc func(req *Request, respHeader http.Header, send SendFunc)
-type SendFunc func(out interface{}, code int)
+type DoFunc func(req *Request, send SendFunc)
+type SendFunc func(out interface{}, header http.Header, code int)
