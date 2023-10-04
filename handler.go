@@ -118,7 +118,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			panic(errors.New("already sent"))
 		}
 
-		for k, v := range header.Clone() {
+		for k, v := range header {
 			for _, v2 := range v {
 				w.Header().Add(k, v2)
 			}
@@ -229,12 +229,14 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		In:      in,
 	}
 
-	for _, m := range h.options.Middleware {
-		m(req, send)
-		if sent != 0 {
-			return
-		}
+	do := []DoFunc{h.do}
+	for i := len(h.options.Middleware) - 1; i >= 0; i-- {
+		m := h.options.Middleware[i]
+		do = append(do, func(req *Request, send SendFunc) {
+			if sent == 0 {
+				m(req, send, do[len(do)-1])
+			}
+		})
 	}
-
-	h.do(req, send)
+	do[len(do)-1](req, send)
 }

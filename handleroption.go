@@ -41,7 +41,7 @@ func (o *joinHandlerOption) apply(options *handlerOptions) {
 
 type handlerOptions struct {
 	OnError            func(error, *http.Request)
-	Middleware         []DoFunc
+	Middleware         []MiddlewareFunc
 	MaxRequestBodySize int64
 	RequestTimeout     time.Duration
 	AllowEncoding      bool
@@ -57,7 +57,7 @@ func (o *handlerOptions) Clone() *handlerOptions {
 	}
 	result := &handlerOptions{
 		OnError:            o.OnError,
-		Middleware:         make([]DoFunc, len(o.Middleware)),
+		Middleware:         make([]MiddlewareFunc, len(o.Middleware)),
 		MaxRequestBodySize: o.MaxRequestBodySize,
 	}
 	copy(result.Middleware, o.Middleware)
@@ -76,7 +76,7 @@ func WithOnError(onError func(error, *http.Request)) HandlerOption {
 	})
 }
 
-func WithMiddleware(middleware ...DoFunc) HandlerOption {
+func WithMiddleware(middleware ...MiddlewareFunc) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.Middleware = append(options.Middleware, middleware...)
 	})
