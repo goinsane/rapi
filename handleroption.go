@@ -48,9 +48,7 @@ type handlerOptions struct {
 }
 
 func newHandlerOptions() (o *handlerOptions) {
-	return &handlerOptions{
-		AllowEncoding: true,
-	}
+	return &handlerOptions{}
 }
 
 func (o *handlerOptions) Clone() *handlerOptions {
