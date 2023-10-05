@@ -34,7 +34,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 			Path:     c.url.Path,
 			RawQuery: "",
 		},
-		Header: options.RequestHeader,
+		Header: options.RequestHeader.Clone(),
 	}).WithContext(ctx)
 
 	var data []byte
