@@ -151,7 +151,11 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		defer func(wr io.WriteCloser) {
-			_ = wr.Close()
+			err = wr.Close()
+			if err != nil {
+				h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
+				return
+			}
 		}(wr)
 
 		w.WriteHeader(code)
