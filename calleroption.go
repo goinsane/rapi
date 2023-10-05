@@ -42,6 +42,7 @@ func (o *joinCallerOption) apply(options *callerOptions) {
 type callerOptions struct {
 	RequestHeader       http.Header
 	MaxResponseBodySize int64
+	ErrOut              error
 }
 
 func newCallerOptions() (o *callerOptions) {
@@ -57,6 +58,7 @@ func (o *callerOptions) Clone() *callerOptions {
 	result := &callerOptions{
 		RequestHeader:       o.RequestHeader.Clone(),
 		MaxResponseBodySize: o.MaxResponseBodySize,
+		ErrOut:              o.ErrOut,
 	}
 	return result
 }
@@ -83,5 +85,11 @@ func WithAdditionalRequestHeader(requestHeader http.Header) CallerOption {
 func WithMaxResponseBodySize(maxResponseBodySize int64) CallerOption {
 	return newFuncCallerOption(func(options *callerOptions) {
 		options.MaxResponseBodySize = maxResponseBodySize
+	})
+}
+
+func WithErrOut(errOut error) CallerOption {
+	return newFuncCallerOption(func(options *callerOptions) {
+		options.ErrOut = errOut
 	})
 }
