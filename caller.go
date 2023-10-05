@@ -14,15 +14,18 @@ import (
 )
 
 type Caller struct {
-	client *Client
-	method string
-	url    *url.URL
-	header http.Header
-	out    interface{}
-	errOut error
+	options *callerOptions
+	client  *http.Client
+	url     *url.URL
+	method  string
+	out     interface{}
+	errOut  error
 }
 
-func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (result *Response, err error) {
+func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption) (result *Response, err error) {
+	options := c.options.Clone()
+	newJoinCallerOption(opts...).apply(options)
+
 	req := (&http.Request{
 		Method: c.method,
 		URL: &url.URL{
@@ -31,15 +34,8 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 			Path:     c.url.Path,
 			RawQuery: "",
 		},
-		Header: c.header.Clone(),
+		Header: options.RequestHeader,
 	}).WithContext(ctx)
-
-	if req.Header == nil {
-		req.Header = http.Header{}
-	}
-	for k, v := range header.Clone() {
-		req.Header[k] = v
-	}
 
 	var data []byte
 	if in != nil {
@@ -65,7 +61,7 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 	}
 	req.Body = io.NopCloser(bytes.NewBuffer(data))
 
-	resp, err := c.client.Client.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}
@@ -86,8 +82,8 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 	}
 
 	var rd io.Reader = resp.Body
-	if c.client.MaxResponseBodySize > 0 {
-		rd = io.LimitReader(resp.Body, c.client.MaxResponseBodySize)
+	if options.MaxResponseBodySize > 0 {
+		rd = io.LimitReader(resp.Body, options.MaxResponseBodySize)
 	}
 	data, err = io.ReadAll(rd)
 	if err != nil {
@@ -126,50 +122,40 @@ func (c *Caller) Call(ctx context.Context, header http.Header, in interface{}) (
 	return result, nil
 }
 
-type Client struct {
-	Client              *http.Client
-	URL                 *url.URL
-	Header              http.Header
-	MaxResponseBodySize int64
+type Factory struct {
+	options *callerOptions
+	client  *http.Client
+	url     *url.URL
 }
 
-func (c *Client) Clone() *Client {
-	if c == nil {
-		return nil
-	}
-	result := &Client{
-		Client: c.Client,
-		URL: &url.URL{
-			Scheme:   c.URL.Scheme,
-			Host:     c.URL.Host,
-			Path:     c.URL.Path,
-			RawQuery: "",
-		},
-		Header:              c.Header.Clone(),
-		MaxResponseBodySize: c.MaxResponseBodySize,
-	}
-	return result
-}
-
-func (c *Client) Caller(method string, endpoint string, header http.Header, out interface{}, errOut error) *Caller {
-	result := &Caller{
-		client: c,
-		method: method,
+func NewFactory(client *http.Client, u *url.URL) (f *Factory) {
+	f = &Factory{
+		options: newCallerOptions(),
+		client:  client,
 		url: &url.URL{
-			Scheme:   c.URL.Scheme,
-			Host:     c.URL.Host,
-			Path:     path.Join(c.URL.Path, endpoint),
+			Scheme:   u.Scheme,
+			Host:     u.Host,
+			Path:     u.Path,
 			RawQuery: "",
 		},
-		header: c.Header.Clone(),
+	}
+	return f
+}
+
+func (f *Factory) Caller(endpoint string, method string, out interface{}, errOut error, opts ...CallerOption) *Caller {
+	result := &Caller{
+		options: f.options.Clone(),
+		client:  f.client,
+		url: &url.URL{
+			Scheme:   f.url.Scheme,
+			Host:     f.url.Host,
+			Path:     path.Join(f.url.Path, endpoint),
+			RawQuery: "",
+		},
+		method: method,
 		out:    out,
 		errOut: errOut,
 	}
-	if result.header == nil {
-		result.header = http.Header{}
-	}
-	for k, v := range header.Clone() {
-		result.header[k] = v
-	}
+	newJoinCallerOption(opts...).apply(f.options)
 	return result
 }
