@@ -16,4 +16,4 @@ type Response struct {
 
 type DoFunc func(req *Request, send SendFunc)
 type MiddlewareFunc func(req *Request, send SendFunc, do DoFunc)
-type SendFunc func(out interface{}, header http.Header, code int)
+type SendFunc func(out interface{}, code int, header ...http.Header)

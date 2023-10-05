@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/textproto"
 	"reflect"
 	"strconv"
 	"strings"
@@ -112,16 +111,19 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}(r.Body)
 
 	var sent int32
-	send := func(out interface{}, header http.Header, code int) {
+	send := func(out interface{}, code int, header ...http.Header) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic(errors.New("already sent"))
 		}
 
-		for k, v := range header.Clone() {
-			k = textproto.CanonicalMIMEHeaderKey(k)
-			w.Header()[k] = v
+		for _, hdr := range header {
+			for k, v := range hdr {
+				for _, v2 := range v {
+					w.Header().Add(k, v2)
+				}
+			}
 		}
 
 		if r.Method == http.MethodHead {
