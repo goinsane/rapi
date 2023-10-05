@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/textproto"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Handler struct {
@@ -39,9 +41,9 @@ func (h *Handler) Handle(pattern string, opts ...HandlerOption) *PatternHandler 
 }
 
 type PatternHandler struct {
-	mu             sync.RWMutex
-	options        *handlerOptions
-	methodHandlers map[string]*methodHandler
+	options          *handlerOptions
+	methodHandlersMu sync.RWMutex
+	methodHandlers   map[string]*methodHandler
 }
 
 func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *PatternHandler) {
@@ -54,12 +56,12 @@ func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *Patte
 }
 
 func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.mu.RLock()
+	h.methodHandlersMu.RLock()
 	mh := h.methodHandlers[r.Method]
 	if mh == nil {
 		mh = h.methodHandlers[""]
 	}
-	h.mu.RUnlock()
+	h.methodHandlersMu.RUnlock()
 
 	if mh == nil {
 		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
@@ -73,8 +75,8 @@ func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) *PatternHandler {
 	method = strings.ToUpper(method)
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.methodHandlersMu.Lock()
+	defer h.methodHandlersMu.Unlock()
 
 	mh := h.methodHandlers[method]
 	if mh != nil {
@@ -110,11 +112,16 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}(r.Body)
 
 	var sent int32
-	send := func(out interface{}, code int) {
+	send := func(out interface{}, header http.Header, code int) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
 			panic(errors.New("already sent"))
+		}
+
+		for k, v := range header.Clone() {
+			k = textproto.CanonicalMIMEHeaderKey(k)
+			w.Header()[k] = v
 		}
 
 		if r.Method == http.MethodHead {
@@ -135,10 +142,29 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 		}
 
+		var wr io.WriteCloser = nopWriteCloser{w}
+		if h.options.AllowEncoding {
+			wr, err = getContentEncoder(w, r)
+			if err != nil {
+				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
+				return
+			}
+		}
+		defer func(wr io.WriteCloser) {
+			_ = wr.Close()
+		}(wr)
+
 		w.WriteHeader(code)
-		_, err = io.Copy(w, bytes.NewBuffer(data))
+
+		_, err = io.Copy(wr, bytes.NewBuffer(data))
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
+			return
+		}
+
+		err = wr.Close()
+		if err != nil {
+			h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
 			return
 		}
 	}
@@ -169,8 +195,19 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if h.options.MaxRequestBodySize > 0 {
 			rd = io.LimitReader(r.Body, h.options.MaxRequestBodySize)
 		}
+		completed := make(chan struct{})
+		if h.options.RequestTimeout > 0 {
+			go func() {
+				select {
+				case <-time.After(h.options.RequestTimeout):
+					_ = r.Body.Close()
+				case <-completed:
+				}
+			}()
+		}
 		var data []byte
 		data, err = io.ReadAll(rd)
+		close(completed)
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), r)
 			httpError(r, w, "unable to read request body", http.StatusBadRequest)
@@ -198,12 +235,21 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		In:      in,
 	}
 
-	for _, m := range h.options.Middleware {
-		m(req, w.Header(), send)
-		if sent != 0 {
-			return
-		}
+	do := []DoFunc{
+		func(req *Request, send SendFunc) {
+			if sent == 0 && h.do != nil {
+				h.do(req, send)
+			}
+		},
 	}
-
-	h.do(req, w.Header(), send)
+	for i := len(h.options.Middleware) - 1; i >= 0; i-- {
+		m := h.options.Middleware[i]
+		l := len(do)
+		do = append(do, func(req *Request, send SendFunc) {
+			if sent == 0 && m != nil {
+				m(req, send, do[l-1])
+			}
+		})
+	}
+	do[len(do)-1](req, send)
 }
