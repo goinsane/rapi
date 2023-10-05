@@ -128,7 +128,7 @@ type Factory struct {
 	url     *url.URL
 }
 
-func NewFactory(client *http.Client, u *url.URL) (f *Factory) {
+func NewFactory(client *http.Client, u *url.URL, opts ...CallerOption) (f *Factory) {
 	f = &Factory{
 		options: newCallerOptions(),
 		client:  client,
@@ -139,6 +139,7 @@ func NewFactory(client *http.Client, u *url.URL) (f *Factory) {
 			RawQuery: "",
 		},
 	}
+	newJoinCallerOption(opts...).apply(f.options)
 	return f
 }
 
@@ -156,6 +157,6 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, errOut
 		out:    out,
 		errOut: errOut,
 	}
-	newJoinCallerOption(opts...).apply(f.options)
+	newJoinCallerOption(opts...).apply(result.options)
 	return result
 }
