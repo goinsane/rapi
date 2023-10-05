@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/textproto"
 	"reflect"
 	"strconv"
 	"strings"
@@ -119,6 +120,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for k, v := range header.Clone() {
+			k = textproto.CanonicalMIMEHeaderKey(k)
 			w.Header()[k] = v
 		}
 
