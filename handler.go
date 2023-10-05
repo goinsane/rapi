@@ -151,11 +151,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		defer func(wr io.WriteCloser) {
-			err = wr.Close()
-			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
-				return
-			}
+			_ = wr.Close()
 		}(wr)
 
 		w.WriteHeader(code)
@@ -163,6 +159,12 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, err = io.Copy(wr, bytes.NewBuffer(data))
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
+			return
+		}
+
+		err = wr.Close()
+		if err != nil {
+			h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
 			return
 		}
 	}
