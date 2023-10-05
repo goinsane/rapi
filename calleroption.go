@@ -73,7 +73,6 @@ func WithRequestHeader(requestHeader http.Header) CallerOption {
 func WithAdditionalRequestHeader(requestHeader http.Header) CallerOption {
 	return newFuncCallerOption(func(options *callerOptions) {
 		for k, v := range requestHeader {
-			k = textproto.CanonicalMIMEHeaderKey(k)
 			for _, v2 := range v {
 				options.RequestHeader.Add(k, v2)
 			}
