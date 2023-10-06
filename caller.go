@@ -19,7 +19,6 @@ type Caller struct {
 	url     *url.URL
 	method  string
 	out     interface{}
-	errOut  error
 }
 
 func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption) (result *Response, err error) {
@@ -91,11 +90,11 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	}
 	result.Data = data
 
-	isErr := resp.StatusCode != http.StatusOK && c.errOut != nil
+	isErr := resp.StatusCode != http.StatusOK && c.options.ErrOut != nil
 
 	outVal := reflect.ValueOf(c.out)
 	if isErr {
-		outVal = reflect.ValueOf(c.errOut)
+		outVal = reflect.ValueOf(c.options.ErrOut)
 	}
 	copiedOutVal := copyReflectValue(outVal)
 
@@ -143,7 +142,7 @@ func NewFactory(client *http.Client, u *url.URL, opts ...CallerOption) (f *Facto
 	return f
 }
 
-func (f *Factory) Caller(endpoint string, method string, out interface{}, errOut error, opts ...CallerOption) *Caller {
+func (f *Factory) Caller(endpoint string, method string, out interface{}, opts ...CallerOption) *Caller {
 	result := &Caller{
 		options: f.options.Clone(),
 		client:  f.client,
@@ -155,7 +154,6 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, errOut
 		},
 		method: method,
 		out:    out,
-		errOut: errOut,
 	}
 	newJoinCallerOption(opts...).apply(result.options)
 	return result

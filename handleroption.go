@@ -59,6 +59,8 @@ func (o *handlerOptions) Clone() *handlerOptions {
 		OnError:            o.OnError,
 		Middleware:         make([]MiddlewareFunc, len(o.Middleware)),
 		MaxRequestBodySize: o.MaxRequestBodySize,
+		RequestTimeout:     o.RequestTimeout,
+		AllowEncoding:      o.AllowEncoding,
 	}
 	copy(result.Middleware, o.Middleware)
 	return result

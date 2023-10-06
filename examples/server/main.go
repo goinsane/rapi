@@ -20,7 +20,7 @@ func main() {
 			func(req *rapi.Request, send rapi.SendFunc) {
 				send(&messages.ErrorResponse{
 					ErrorMsg: http.StatusText(http.StatusNotImplemented),
-				}, nil, http.StatusNotImplemented)
+				}, http.StatusNotImplemented)
 			})
 
 	handler.Handle("/ping").
@@ -29,32 +29,32 @@ func main() {
 				in := req.In.(*messages.PingRequest)
 				send(&messages.PingReply{
 					Payload: in.Payload,
-				}, nil, http.StatusOK)
+				}, http.StatusOK)
 			})
 
 	handler.Handle("/echo").
 		Register("POST", nil,
 			func(req *rapi.Request, send rapi.SendFunc) {
-				send(req.In, nil, http.StatusOK)
+				send(req.In, http.StatusOK)
 			})
 
 	handler.Handle("/test").
 		Register("GET", &messages.TestRequest{},
 			func(req *rapi.Request, send rapi.SendFunc) {
 				in := req.In.(*messages.TestRequest)
-				send(&messages.TestReply{X: -in.X}, nil, http.StatusOK)
+				send(&messages.TestReply{X: -in.X}, http.StatusOK)
 			}, rapi.WithMiddleware(
 				func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
 					in := req.In.(*messages.TestRequest)
 					if in.X == 1 {
-						send(&messages.TestReply{X: in.X}, nil, http.StatusOK)
+						send(&messages.TestReply{X: in.X}, http.StatusOK)
 					}
 					do(req, send)
 				},
 				func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
 					in := req.In.(*messages.TestRequest)
 					if in.X == 2 {
-						send(&messages.TestReply{X: in.X}, nil, http.StatusOK)
+						send(&messages.TestReply{X: in.X}, http.StatusOK)
 					}
 					do(req, send)
 				},
