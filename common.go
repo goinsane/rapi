@@ -4,8 +4,7 @@ import "net/http"
 
 type Request struct {
 	*http.Request
-	In        interface{}
-	Transport interface{}
+	In interface{}
 }
 
 type Response struct {
