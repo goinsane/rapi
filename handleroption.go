@@ -40,7 +40,7 @@ func (o *joinHandlerOption) apply(options *handlerOptions) {
 }
 
 type handlerOptions struct {
-	OnError            func(error, *http.Request)
+	OnError            func(err error, req *http.Request)
 	Middleware         []MiddlewareFunc
 	MaxRequestBodySize int64
 	RequestTimeout     time.Duration

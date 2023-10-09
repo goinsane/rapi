@@ -63,20 +63,24 @@ func (o *callerOptions) Clone() *callerOptions {
 	return result
 }
 
-func WithRequestHeader(requestHeader http.Header) CallerOption {
+func WithRequestHeader(header ...http.Header) CallerOption {
 	return newFuncCallerOption(func(options *callerOptions) {
-		for k, v := range requestHeader.Clone() {
-			k = textproto.CanonicalMIMEHeaderKey(k)
-			options.RequestHeader[k] = v
+		for _, hdr := range header {
+			for k, v := range hdr.Clone() {
+				k = textproto.CanonicalMIMEHeaderKey(k)
+				options.RequestHeader[k] = v
+			}
 		}
 	})
 }
 
-func WithAdditionalRequestHeader(requestHeader http.Header) CallerOption {
+func WithAdditionalRequestHeader(header ...http.Header) CallerOption {
 	return newFuncCallerOption(func(options *callerOptions) {
-		for k, v := range requestHeader {
-			for _, v2 := range v {
-				options.RequestHeader.Add(k, v2)
+		for _, hdr := range header {
+			for k, v := range hdr {
+				for _, v2 := range v {
+					options.RequestHeader.Add(k, v2)
+				}
 			}
 		}
 	})
