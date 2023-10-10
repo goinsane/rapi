@@ -112,9 +112,9 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 
 		var fieldName string
 		if v, ok := field.Tag.Lookup("json"); ok {
-			fieldName = strings.SplitN(v, ",", 2)[0]
+			fieldName = strings.TrimSpace(strings.SplitN(v, ",", 2)[0])
 		} else {
-			fieldName = strings.ToLower(strings.ReplaceAll(field.Name, "_", ""))
+			fieldName = strings.ReplaceAll(field.Name, "_", "")
 		}
 		if fieldName == "-" {
 			continue
@@ -187,9 +187,9 @@ func structToValues(source interface{}) (values url.Values, err error) {
 
 		var fieldName string
 		if v, ok := field.Tag.Lookup("json"); ok {
-			fieldName = strings.SplitN(v, ",", 2)[0]
+			fieldName = strings.TrimSpace(strings.SplitN(v, ",", 2)[0])
 		} else {
-			fieldName = strings.ToLower(strings.ReplaceAll(field.Name, "_", ""))
+			fieldName = strings.ReplaceAll(field.Name, "_", "")
 		}
 		if fieldName == "-" {
 			continue
