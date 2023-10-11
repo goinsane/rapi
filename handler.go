@@ -106,10 +106,6 @@ func newMethodhandler(in interface{}, do DoFunc, options *handlerOptions, opts .
 func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(r.Body)
-
 	var sent int32
 	send := func(out interface{}, code int, header ...http.Header) {
 		var err error
@@ -156,19 +152,38 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = wr.Close()
 		}(wr)
 
-		w.WriteHeader(code)
+		completed := make(chan struct{})
+		go func() {
+			defer close(completed)
 
-		_, err = io.Copy(wr, bytes.NewBuffer(data))
-		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
-			return
+			var err error
+
+			w.WriteHeader(code)
+
+			_, err = io.Copy(wr, bytes.NewBuffer(data))
+			if err != nil {
+				h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
+				return
+			}
+
+			err = wr.Close()
+			if err != nil {
+				h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
+				return
+			}
+		}()
+
+		if h.options.ResponseTimeout > 0 {
+			go func() {
+				select {
+				case <-time.After(h.options.ResponseTimeout):
+					close(completed)
+				case <-completed:
+				}
+			}()
 		}
 
-		err = wr.Close()
-		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
-			return
-		}
+		<-completed
 	}
 
 	contentType := r.Header.Get("Content-Type")
