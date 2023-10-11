@@ -153,14 +153,25 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = wr.Close()
 		}(wr)
 
+		w.WriteHeader(code)
+
 		respCtx, respCancel := context.WithCancel(context.Background())
 		defer respCancel()
+
+		if h.options.ResponseTimeout > 0 {
+			go func() {
+				select {
+				case <-time.After(h.options.ResponseTimeout):
+					respCancel()
+				case <-respCtx.Done():
+				}
+			}()
+		}
+
 		go func() {
 			defer respCancel()
 
 			var err error
-
-			w.WriteHeader(code)
 
 			_, err = io.Copy(wr, bytes.NewBuffer(data))
 			if err != nil {
@@ -174,16 +185,6 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}()
-
-		if h.options.ResponseTimeout > 0 {
-			go func() {
-				select {
-				case <-time.After(h.options.ResponseTimeout):
-					respCancel()
-				case <-respCtx.Done():
-				}
-			}()
-		}
 
 		<-respCtx.Done()
 	}
