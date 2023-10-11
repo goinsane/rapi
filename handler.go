@@ -2,6 +2,7 @@ package rapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -152,9 +153,10 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = wr.Close()
 		}(wr)
 
-		completed := make(chan struct{})
+		respCtx, respCancel := context.WithCancel(context.Background())
+		defer respCancel()
 		go func() {
-			defer close(completed)
+			defer respCancel()
 
 			var err error
 
@@ -177,13 +179,13 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			go func() {
 				select {
 				case <-time.After(h.options.ResponseTimeout):
-					close(completed)
-				case <-completed:
+					respCancel()
+				case <-respCtx.Done():
 				}
 			}()
 		}
 
-		<-completed
+		<-respCtx.Done()
 	}
 
 	contentType := r.Header.Get("Content-Type")
