@@ -43,6 +43,7 @@ type callerOptions struct {
 	RequestHeader       http.Header
 	MaxResponseBodySize int64
 	ErrOut              error
+	ForceBody           bool
 }
 
 func newCallerOptions() (o *callerOptions) {
@@ -59,6 +60,7 @@ func (o *callerOptions) Clone() *callerOptions {
 		RequestHeader:       o.RequestHeader.Clone(),
 		MaxResponseBodySize: o.MaxResponseBodySize,
 		ErrOut:              o.ErrOut,
+		ForceBody:           o.ForceBody,
 	}
 	return result
 }
@@ -95,5 +97,11 @@ func WithMaxResponseBodySize(maxResponseBodySize int64) CallerOption {
 func WithErrOut(errOut error) CallerOption {
 	return newFuncCallerOption(func(options *callerOptions) {
 		options.ErrOut = errOut
+	})
+}
+
+func WithForceBody(forceBody bool) CallerOption {
+	return newFuncCallerOption(func(options *callerOptions) {
+		options.ForceBody = forceBody
 	})
 }
