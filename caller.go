@@ -41,6 +41,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 		if inValType := reflect.ValueOf(in).Type(); (inValType.Kind() == reflect.Struct ||
 			(inValType.Kind() == reflect.Pointer &&
 				inValType.Elem().Kind() == reflect.Struct)) &&
+			!options.ForceBody &&
 			(c.method == http.MethodHead || c.method == http.MethodGet) {
 			var values url.Values
 			values, err = structToValues(in)
