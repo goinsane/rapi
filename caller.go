@@ -46,13 +46,13 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 			var values url.Values
 			values, err = structToValues(in)
 			if err != nil {
-				return nil, &CallerError{fmt.Errorf("unable to set input to values: %w", err)}
+				return nil, fmt.Errorf("unable to set input to values: %w", err)
 			}
 			req.URL.RawQuery = values.Encode()
 		} else {
 			data, err = json.Marshal(in)
 			if err != nil {
-				return nil, &CallerError{fmt.Errorf("unable to marshal input: %w", err)}
+				return nil, fmt.Errorf("unable to marshal input: %w", err)
 			}
 			data = append(data, '\n')
 			req.Header.Set("Content-Type", "application/json; charset=utf-8")
@@ -63,7 +63,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, &CallerError{fmt.Errorf("http request error: %w", err)}
+		return nil, &RequestError{err}
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
@@ -77,7 +77,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
-			return result, &CallerError{fmt.Errorf("invalid content type %q: %w", contentType, err)}
+			return result, &InvalidContentTypeError{err, contentType}
 		}
 	}
 
@@ -87,7 +87,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	}
 	data, err = io.ReadAll(rd)
 	if err != nil {
-		return result, &CallerError{fmt.Errorf("unable to read response body: %w", err)}
+		return result, fmt.Errorf("unable to read response body: %w", err)
 	}
 	result.Data = data
 
@@ -102,7 +102,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	if len(data) > 0 || isErr {
 		err = json.Unmarshal(data, copiedOutVal.Interface())
 		if err != nil {
-			return result, &CallerError{fmt.Errorf("unable to unmarshal response body: %w", err)}
+			return result, fmt.Errorf("unable to unmarshal response body: %w", err)
 		}
 	}
 
