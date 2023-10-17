@@ -32,7 +32,7 @@ func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 func validateJSONContentType(contentType string) error {
 	mediatype, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return fmt.Errorf("unable to parse media type: %w", err)
+		return fmt.Errorf("media type parse error: %w", err)
 	}
 	switch mediatype {
 	case "application/json":
