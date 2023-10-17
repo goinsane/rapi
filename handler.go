@@ -244,7 +244,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in interface{}
-	if inVal.Kind() == reflect.Pointer {
+	if inVal.Kind() == reflect.Ptr {
 		in = copiedInVal.Interface()
 	} else {
 		in = copiedInVal.Elem().Interface()
