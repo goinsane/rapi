@@ -74,13 +74,6 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 		Out:      nil,
 	}
 
-	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
-		err = validateJSONContentType(contentType)
-		if err != nil {
-			return result, &InvalidContentTypeError{err, contentType}
-		}
-	}
-
 	var rd io.Reader = resp.Body
 	if options.MaxResponseBodySize > 0 {
 		rd = io.LimitReader(resp.Body, options.MaxResponseBodySize)
@@ -90,6 +83,13 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 		return result, fmt.Errorf("unable to read response body: %w", err)
 	}
 	result.Data = data
+
+	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
+		err = validateJSONContentType(contentType)
+		if err != nil {
+			return result, &InvalidContentTypeError{err, contentType}
+		}
+	}
 
 	isErr := resp.StatusCode != http.StatusOK && c.options.ErrOut != nil
 
