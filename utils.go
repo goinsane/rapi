@@ -56,7 +56,7 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 	}
 
 	var indirectVal reflect.Value
-	if val.Kind() != reflect.Pointer {
+	if val.Kind() != reflect.Ptr {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
@@ -87,7 +87,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 	val := reflect.ValueOf(target)
 
 	var indirectVal reflect.Value
-	if val.Kind() != reflect.Pointer {
+	if val.Kind() != reflect.Ptr {
 		panic(errors.New("target must be struct pointer"))
 	} else {
 		if val.IsNil() {
@@ -129,14 +129,14 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 		switch ifc.(type) {
 		case string, *string:
 			x := value
-			if kind != reflect.Pointer {
+			if kind != reflect.Ptr {
 				fieldVal.Set(reflect.ValueOf(x))
 			} else {
 				fieldVal.Set(reflect.ValueOf(&x))
 			}
 		case []byte, *[]byte:
 			x := []byte(value)
-			if kind != reflect.Pointer {
+			if kind != reflect.Ptr {
 				fieldVal.Set(reflect.ValueOf(x))
 			} else {
 				fieldVal.Set(reflect.ValueOf(&x))
@@ -160,7 +160,7 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	val := reflect.ValueOf(source)
 
 	var indirectVal reflect.Value
-	if val.Kind() != reflect.Pointer {
+	if val.Kind() != reflect.Ptr {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
@@ -197,19 +197,19 @@ func structToValues(source interface{}) (values url.Values, err error) {
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 
-		if kind == reflect.Pointer && fieldVal.IsNil() {
+		if kind == reflect.Ptr && fieldVal.IsNil() {
 			continue
 		}
 
 		switch ifc.(type) {
 		case string, *string:
-			if kind != reflect.Pointer {
+			if kind != reflect.Ptr {
 				values.Set(fieldName, ifc.(string))
 			} else {
 				values.Set(fieldName, *ifc.(*string))
 			}
 		case []byte, *[]byte:
-			if kind != reflect.Pointer {
+			if kind != reflect.Ptr {
 				values.Set(fieldName, string(ifc.([]byte)))
 			} else {
 				values.Set(fieldName, string(*ifc.(*[]byte)))

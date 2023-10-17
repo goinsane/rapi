@@ -39,7 +39,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	var data []byte
 	if in != nil {
 		if inValType := reflect.ValueOf(in).Type(); (inValType.Kind() == reflect.Struct ||
-			(inValType.Kind() == reflect.Pointer &&
+			(inValType.Kind() == reflect.Ptr &&
 				inValType.Elem().Kind() == reflect.Struct)) &&
 			!options.ForceBody &&
 			(c.method == http.MethodHead || c.method == http.MethodGet) {
@@ -107,7 +107,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	}
 
 	var out interface{}
-	if outVal.Kind() == reflect.Pointer {
+	if outVal.Kind() == reflect.Ptr {
 		out = copiedOutVal.Interface()
 	} else {
 		out = copiedOutVal.Elem().Interface()
