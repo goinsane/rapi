@@ -150,11 +150,14 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, opts .
 		url: &url.URL{
 			Scheme:   f.url.Scheme,
 			Host:     f.url.Host,
-			Path:     path.Join(f.url.Path, endpoint),
+			Path:     f.url.Path,
 			RawQuery: "",
 		},
 		method: method,
 		out:    out,
+	}
+	if endpoint != "" {
+		result.url.Path = path.Join(result.url.Path, endpoint)
 	}
 	newJoinCallerOption(opts...).apply(result.options)
 	return result
