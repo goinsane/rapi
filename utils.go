@@ -130,11 +130,10 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 
 		switch ifc.(type) {
 		case string, *string:
-			x := value
 			if kind != reflect.Ptr {
-				fieldVal.Set(reflect.ValueOf(x))
+				fieldVal.Set(reflect.ValueOf(value))
 			} else {
-				fieldVal.Set(reflect.ValueOf(&x))
+				fieldVal.Set(reflect.ValueOf(&value))
 			}
 		case []byte, *[]byte, time.Time, *time.Time:
 			value = strconv.Quote(value)
