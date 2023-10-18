@@ -45,7 +45,13 @@ func main() {
 		Register("GET", &messages.TestRequest{},
 			func(req *rapi.Request, send rapi.SendFunc) {
 				in := req.In.(*messages.TestRequest)
-				send(&messages.TestReply{X: -in.X, T: in.T, D: time.Now().Sub(startTime)}, http.StatusOK)
+				send(&messages.TestReply{
+					X:  -in.X,
+					T:  in.T,
+					B:  in.B,
+					BS: string(in.B),
+					D:  time.Now().Sub(startTime),
+				}, http.StatusOK)
 			}, rapi.WithMiddleware(
 				func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
 					in := req.In.(*messages.TestRequest)

@@ -21,10 +21,13 @@ type PingReply struct {
 type TestRequest struct {
 	X int
 	T time.Time
+	B []byte
 }
 
 type TestReply struct {
-	X int
-	T time.Time
-	D time.Duration
+	X  int
+	T  time.Time
+	B  []byte
+	BS string
+	D  time.Duration
 }
