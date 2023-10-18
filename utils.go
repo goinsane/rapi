@@ -135,14 +135,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 			} else {
 				fieldVal.Set(reflect.ValueOf(&x))
 			}
-		case []byte, *[]byte:
-			x := []byte(value)
-			if kind != reflect.Ptr {
-				fieldVal.Set(reflect.ValueOf(x))
-			} else {
-				fieldVal.Set(reflect.ValueOf(&x))
-			}
-		case time.Time, *time.Time:
+		case []byte, *[]byte, time.Time, *time.Time:
 			value = strconv.Quote(value)
 			err = json.Unmarshal([]byte(value), fieldVal.Addr().Interface())
 			if err != nil {
@@ -215,13 +208,7 @@ func structToValues(source interface{}) (values url.Values, err error) {
 			} else {
 				values.Set(fieldName, *ifc.(*string))
 			}
-		case []byte, *[]byte:
-			if kind != reflect.Ptr {
-				values.Set(fieldName, string(ifc.([]byte)))
-			} else {
-				values.Set(fieldName, string(*ifc.(*[]byte)))
-			}
-		case time.Time, *time.Time:
+		case []byte, *[]byte, time.Time, *time.Time:
 			var data []byte
 			data, err = json.Marshal(fieldVal.Interface())
 			if err != nil {
