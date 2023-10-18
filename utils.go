@@ -127,6 +127,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 		value := values.Get(fieldName)
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
+
 		switch ifc.(type) {
 		case string, *string:
 			x := value
