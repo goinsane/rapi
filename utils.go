@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type nopWriteCloser struct {
@@ -141,6 +142,12 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 			} else {
 				fieldVal.Set(reflect.ValueOf(&x))
 			}
+		case time.Time, *time.Time:
+			value = strconv.Quote(value)
+			err = json.Unmarshal([]byte(value), fieldVal.Addr().Interface())
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal field %q value: %w", fieldName, err)
+			}
 		default:
 			err = json.Unmarshal([]byte(value), fieldVal.Addr().Interface())
 			if err != nil {
@@ -214,13 +221,23 @@ func structToValues(source interface{}) (values url.Values, err error) {
 			} else {
 				values.Set(fieldName, string(*ifc.(*[]byte)))
 			}
+		case time.Time, *time.Time:
+			var data []byte
+			data, err = json.Marshal(fieldVal.Interface())
+			if err != nil {
+				return values, fmt.Errorf("unable to marshal field %q value: %w", fieldName, err)
+			}
+			value := string(data)
+			value, _ = strconv.Unquote(value)
+			values.Set(fieldName, value)
 		default:
 			var data []byte
 			data, err = json.Marshal(fieldVal.Interface())
 			if err != nil {
 				return values, fmt.Errorf("unable to marshal field %q value: %w", fieldName, err)
 			}
-			values.Set(fieldName, string(data))
+			value := string(data)
+			values.Set(fieldName, value)
 		}
 	}
 
