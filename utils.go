@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type nopWriteCloser struct {
@@ -126,20 +127,19 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 		value := values.Get(fieldName)
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
+
 		switch ifc.(type) {
 		case string, *string:
-			x := value
 			if kind != reflect.Ptr {
-				fieldVal.Set(reflect.ValueOf(x))
+				fieldVal.Set(reflect.ValueOf(value))
 			} else {
-				fieldVal.Set(reflect.ValueOf(&x))
+				fieldVal.Set(reflect.ValueOf(&value))
 			}
-		case []byte, *[]byte:
-			x := []byte(value)
-			if kind != reflect.Ptr {
-				fieldVal.Set(reflect.ValueOf(x))
-			} else {
-				fieldVal.Set(reflect.ValueOf(&x))
+		case []byte, *[]byte, time.Time, *time.Time:
+			value = strconv.Quote(value)
+			err = json.Unmarshal([]byte(value), fieldVal.Addr().Interface())
+			if err != nil {
+				return fmt.Errorf("unable to unmarshal field %q value: %w", fieldName, err)
 			}
 		default:
 			err = json.Unmarshal([]byte(value), fieldVal.Addr().Interface())
@@ -208,19 +208,23 @@ func structToValues(source interface{}) (values url.Values, err error) {
 			} else {
 				values.Set(fieldName, *ifc.(*string))
 			}
-		case []byte, *[]byte:
-			if kind != reflect.Ptr {
-				values.Set(fieldName, string(ifc.([]byte)))
-			} else {
-				values.Set(fieldName, string(*ifc.(*[]byte)))
+		case []byte, *[]byte, time.Time, *time.Time:
+			var data []byte
+			data, err = json.Marshal(fieldVal.Interface())
+			if err != nil {
+				return values, fmt.Errorf("unable to marshal field %q value: %w", fieldName, err)
 			}
+			value := string(data)
+			value, _ = strconv.Unquote(value)
+			values.Set(fieldName, value)
 		default:
 			var data []byte
 			data, err = json.Marshal(fieldVal.Interface())
 			if err != nil {
 				return values, fmt.Errorf("unable to marshal field %q value: %w", fieldName, err)
 			}
-			values.Set(fieldName, string(data))
+			value := string(data)
+			values.Set(fieldName, value)
 		}
 	}
 

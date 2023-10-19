@@ -3,10 +3,13 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/goinsane/rapi"
 	"github.com/goinsane/rapi/examples/messages"
 )
+
+var startTime = time.Now()
 
 func main() {
 	var err error
@@ -42,7 +45,13 @@ func main() {
 		Register("GET", &messages.TestRequest{},
 			func(req *rapi.Request, send rapi.SendFunc) {
 				in := req.In.(*messages.TestRequest)
-				send(&messages.TestReply{X: -in.X}, http.StatusOK)
+				send(&messages.TestReply{
+					X:  -in.X,
+					T:  in.T,
+					B:  in.B,
+					BS: string(in.B),
+					D:  time.Now().Sub(startTime),
+				}, http.StatusOK)
 			}, rapi.WithMiddleware(
 				func(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
 					in := req.In.(*messages.TestRequest)
