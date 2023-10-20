@@ -144,6 +144,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			wr, err = getContentEncoder(w, r)
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
+				httpError(r, w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
 		}
