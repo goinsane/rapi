@@ -36,7 +36,7 @@ func main() {
 			})
 
 	handler.Handle("/echo").
-		Register("POST", nil,
+		Register("", nil,
 			func(req *rapi.Request, send rapi.SendFunc) {
 				send(req.In, http.StatusOK)
 			})

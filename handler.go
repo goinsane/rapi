@@ -129,23 +129,22 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var data []byte
-		if out != nil {
-			data, err = json.Marshal(out)
-			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), r)
-				httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				return
-			}
-			data = append(data, '\n')
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
+		data, err = json.Marshal(out)
+		if err != nil {
+			h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), r)
+			httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
 		}
+		data = append(data, '\n')
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 
 		var wr io.WriteCloser = nopWriteCloser{w}
 		if h.options.AllowEncoding {
 			wr, err = getContentEncoder(w, r)
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
+				httpError(r, w, "invalid accept encoding", http.StatusBadRequest)
 				return
 			}
 		}
