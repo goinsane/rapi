@@ -192,7 +192,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("invalid content type %q: %w", contentType, err), r)
+			h.options.PerformError(&InvalidContentTypeError{err, contentType}, r)
 			httpError(r, w, "invalid content type", http.StatusBadRequest)
 			return
 		}

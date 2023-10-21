@@ -38,7 +38,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 
 	var data []byte
 	if inVal := reflect.ValueOf(in); !options.ForceBody &&
-		(inVal.Kind() == reflect.Struct || (inVal.Kind() == reflect.Ptr && inVal.Elem().Kind() == reflect.Struct)) &&
+		(in == nil || inVal.Kind() == reflect.Struct || (inVal.Kind() == reflect.Ptr && inVal.Elem().Kind() == reflect.Struct)) &&
 		(c.method == http.MethodHead || c.method == http.MethodGet) {
 		if in != nil {
 			var values url.Values
