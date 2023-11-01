@@ -16,11 +16,14 @@ import (
 	"time"
 )
 
+// Handler implements http.Handler to process JSON requests based on pattern and registered methods.
+// Handler is similar to http.ServeMux in terms of operation.
 type Handler struct {
 	options  *handlerOptions
 	serveMux *http.ServeMux
 }
 
+// NewHandler creates a new Handler by given HandlerOption's.
 func NewHandler(opts ...HandlerOption) (h *Handler) {
 	h = &Handler{
 		options:  newHandlerOptions(),
@@ -30,16 +33,19 @@ func NewHandler(opts ...HandlerOption) (h *Handler) {
 	return h
 }
 
+// ServeHTTP is implementation of http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.serveMux.ServeHTTP(w, r)
 }
 
+// Handle creates a Registrar to register methods for the given pattern.
 func (h *Handler) Handle(pattern string, opts ...HandlerOption) Registrar {
 	ph := newPatternHandler(h.options, opts...)
 	h.serveMux.Handle(pattern, ph)
 	return &struct{ Registrar }{ph}
 }
 
+// Registrar is method registrar and created by Handler.
 type Registrar interface {
 	Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar
 }
