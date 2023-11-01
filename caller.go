@@ -13,6 +13,8 @@ import (
 	"strconv"
 )
 
+// Caller is the HTTP requester to do JSON requests with the given method to the given endpoint.
+// The method and endpoint are given from Factory.
 type Caller struct {
 	options *callerOptions
 	client  *http.Client
@@ -21,6 +23,7 @@ type Caller struct {
 	out     interface{}
 }
 
+// Call does the HTTP request with the given input and CallOption's.
 func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption) (result *Response, err error) {
 	options := c.options.Clone()
 	newJoinCallerOption(opts...).apply(options)
@@ -120,12 +123,14 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	return result, nil
 }
 
+// Factory is Caller factory to create new Caller's.
 type Factory struct {
 	options *callerOptions
 	client  *http.Client
 	url     *url.URL
 }
 
+// NewFactory creates a new Factory.
 func NewFactory(client *http.Client, u *url.URL, opts ...CallerOption) (f *Factory) {
 	f = &Factory{
 		options: newCallerOptions(),
@@ -141,6 +146,7 @@ func NewFactory(client *http.Client, u *url.URL, opts ...CallerOption) (f *Facto
 	return f
 }
 
+// Caller creates a new Caller with the given endpoint and method.
 func (f *Factory) Caller(endpoint string, method string, out interface{}, opts ...CallerOption) *Caller {
 	result := &Caller{
 		options: f.options.Clone(),
