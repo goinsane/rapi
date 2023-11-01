@@ -13,17 +13,20 @@ import (
 	"strconv"
 )
 
+// Caller is the HTTP requester to do JSON requests with the given method to the given endpoint.
+// The method and endpoint are given from Factory.
 type Caller struct {
-	options *callerOptions
+	options *callOptions
 	client  *http.Client
 	url     *url.URL
 	method  string
 	out     interface{}
 }
 
-func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption) (result *Response, err error) {
+// Call does the HTTP request with the given input and CallOption's.
+func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (result *Response, err error) {
 	options := c.options.Clone()
-	newJoinCallerOption(opts...).apply(options)
+	newJoinCallOption(opts...).apply(options)
 
 	req := (&http.Request{
 		Method: c.method,
@@ -120,15 +123,17 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallerOption)
 	return result, nil
 }
 
+// Factory is Caller factory to create new Caller's.
 type Factory struct {
-	options *callerOptions
+	options *callOptions
 	client  *http.Client
 	url     *url.URL
 }
 
-func NewFactory(client *http.Client, u *url.URL, opts ...CallerOption) (f *Factory) {
+// NewFactory creates a new Factory.
+func NewFactory(client *http.Client, u *url.URL, opts ...CallOption) (f *Factory) {
 	f = &Factory{
-		options: newCallerOptions(),
+		options: newCallOptions(),
 		client:  client,
 		url: &url.URL{
 			Scheme:   u.Scheme,
@@ -137,11 +142,12 @@ func NewFactory(client *http.Client, u *url.URL, opts ...CallerOption) (f *Facto
 			RawQuery: "",
 		},
 	}
-	newJoinCallerOption(opts...).apply(f.options)
+	newJoinCallOption(opts...).apply(f.options)
 	return f
 }
 
-func (f *Factory) Caller(endpoint string, method string, out interface{}, opts ...CallerOption) *Caller {
+// Caller creates a new Caller with the given endpoint and method.
+func (f *Factory) Caller(endpoint string, method string, out interface{}, opts ...CallOption) *Caller {
 	result := &Caller{
 		options: f.options.Clone(),
 		client:  f.client,
@@ -157,6 +163,6 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, opts .
 	if endpoint != "" {
 		result.url.Path = path.Join(result.url.Path, endpoint)
 	}
-	newJoinCallerOption(opts...).apply(result.options)
+	newJoinCallOption(opts...).apply(result.options)
 	return result
 }

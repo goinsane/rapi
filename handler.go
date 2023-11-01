@@ -16,11 +16,14 @@ import (
 	"time"
 )
 
+// Handler implements http.Handler to process JSON requests based on pattern and registered methods.
+// Handler is similar to http.ServeMux in terms of operation.
 type Handler struct {
 	options  *handlerOptions
 	serveMux *http.ServeMux
 }
 
+// NewHandler creates a new Handler by given HandlerOption's.
 func NewHandler(opts ...HandlerOption) (h *Handler) {
 	h = &Handler{
 		options:  newHandlerOptions(),
@@ -30,24 +33,31 @@ func NewHandler(opts ...HandlerOption) (h *Handler) {
 	return h
 }
 
+// ServeHTTP is implementation of http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.serveMux.ServeHTTP(w, r)
 }
 
-func (h *Handler) Handle(pattern string, opts ...HandlerOption) *PatternHandler {
+// Handle creates a Registrar to register methods for the given pattern.
+func (h *Handler) Handle(pattern string, opts ...HandlerOption) Registrar {
 	ph := newPatternHandler(h.options, opts...)
 	h.serveMux.Handle(pattern, ph)
-	return ph
+	return &struct{ Registrar }{ph}
 }
 
-type PatternHandler struct {
+// Registrar is method registrar and created by Handler.
+type Registrar interface {
+	Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar
+}
+
+type patternHandler struct {
 	options          *handlerOptions
 	methodHandlersMu sync.RWMutex
 	methodHandlers   map[string]*methodHandler
 }
 
-func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *PatternHandler) {
-	h = &PatternHandler{
+func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *patternHandler) {
+	h = &patternHandler{
 		options:        options.Clone(),
 		methodHandlers: make(map[string]*methodHandler),
 	}
@@ -55,7 +65,7 @@ func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *Patte
 	return h
 }
 
-func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.methodHandlersMu.RLock()
 	mh := h.methodHandlers[r.Method]
 	if mh == nil {
@@ -72,7 +82,7 @@ func (h *PatternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mh.ServeHTTP(w, r)
 }
 
-func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) *PatternHandler {
+func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar {
 	method = strings.ToUpper(method)
 
 	h.methodHandlersMu.Lock()
@@ -85,7 +95,7 @@ func (h *PatternHandler) Register(method string, in interface{}, do DoFunc, opts
 	mh = newMethodhandler(in, do, h.options, opts...)
 	h.methodHandlers[method] = mh
 
-	return h
+	return &struct{ Registrar }{h}
 }
 
 type methodHandler struct {

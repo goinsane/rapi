@@ -5,58 +5,58 @@ import (
 	"net/textproto"
 )
 
-type CallerOption interface {
-	apply(*callerOptions)
+type CallOption interface {
+	apply(*callOptions)
 }
 
-type funcCallerOption struct {
-	f func(*callerOptions)
+type funcCallOption struct {
+	f func(*callOptions)
 }
 
-func (o *funcCallerOption) apply(options *callerOptions) {
+func (o *funcCallOption) apply(options *callOptions) {
 	o.f(options)
 }
 
-func newFuncCallerOption(f func(options *callerOptions)) *funcCallerOption {
-	return &funcCallerOption{
+func newFuncCallOption(f func(options *callOptions)) *funcCallOption {
+	return &funcCallOption{
 		f: f,
 	}
 }
 
-type joinCallerOption struct {
-	opts []CallerOption
+type joinCallOption struct {
+	opts []CallOption
 }
 
-func newJoinCallerOption(opts ...CallerOption) *joinCallerOption {
-	return &joinCallerOption{
+func newJoinCallOption(opts ...CallOption) *joinCallOption {
+	return &joinCallOption{
 		opts: opts,
 	}
 }
 
-func (o *joinCallerOption) apply(options *callerOptions) {
+func (o *joinCallOption) apply(options *callOptions) {
 	for _, opt := range o.opts {
 		opt.apply(options)
 	}
 }
 
-type callerOptions struct {
+type callOptions struct {
 	RequestHeader       http.Header
 	MaxResponseBodySize int64
 	ErrOut              error
 	ForceBody           bool
 }
 
-func newCallerOptions() (o *callerOptions) {
-	return &callerOptions{
+func newCallOptions() (o *callOptions) {
+	return &callOptions{
 		RequestHeader: http.Header{},
 	}
 }
 
-func (o *callerOptions) Clone() *callerOptions {
+func (o *callOptions) Clone() *callOptions {
 	if o == nil {
 		return nil
 	}
-	result := &callerOptions{
+	result := &callOptions{
 		RequestHeader:       o.RequestHeader.Clone(),
 		MaxResponseBodySize: o.MaxResponseBodySize,
 		ErrOut:              o.ErrOut,
@@ -65,8 +65,8 @@ func (o *callerOptions) Clone() *callerOptions {
 	return result
 }
 
-func WithRequestHeader(header ...http.Header) CallerOption {
-	return newFuncCallerOption(func(options *callerOptions) {
+func WithRequestHeader(header ...http.Header) CallOption {
+	return newFuncCallOption(func(options *callOptions) {
 		for _, hdr := range header {
 			for k, v := range hdr.Clone() {
 				k = textproto.CanonicalMIMEHeaderKey(k)
@@ -76,8 +76,8 @@ func WithRequestHeader(header ...http.Header) CallerOption {
 	})
 }
 
-func WithAdditionalRequestHeader(header ...http.Header) CallerOption {
-	return newFuncCallerOption(func(options *callerOptions) {
+func WithAdditionalRequestHeader(header ...http.Header) CallOption {
+	return newFuncCallOption(func(options *callOptions) {
 		for _, hdr := range header {
 			for k, v := range hdr {
 				for _, v2 := range v {
@@ -88,20 +88,20 @@ func WithAdditionalRequestHeader(header ...http.Header) CallerOption {
 	})
 }
 
-func WithMaxResponseBodySize(maxResponseBodySize int64) CallerOption {
-	return newFuncCallerOption(func(options *callerOptions) {
+func WithMaxResponseBodySize(maxResponseBodySize int64) CallOption {
+	return newFuncCallOption(func(options *callOptions) {
 		options.MaxResponseBodySize = maxResponseBodySize
 	})
 }
 
-func WithErrOut(errOut error) CallerOption {
-	return newFuncCallerOption(func(options *callerOptions) {
+func WithErrOut(errOut error) CallOption {
+	return newFuncCallOption(func(options *callOptions) {
 		options.ErrOut = errOut
 	})
 }
 
-func WithForceBody(forceBody bool) CallerOption {
-	return newFuncCallerOption(func(options *callerOptions) {
+func WithForceBody(forceBody bool) CallOption {
+	return newFuncCallOption(func(options *callOptions) {
 		options.ForceBody = forceBody
 	})
 }
