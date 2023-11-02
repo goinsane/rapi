@@ -111,8 +111,6 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 			continue
 		}
 
-		fieldVal := indirectVal.Field(i)
-
 		fieldName := toJSONFieldName(field.Name)
 		if v, ok := field.Tag.Lookup("json"); ok {
 			s := strings.SplitN(v, ",", 2)[0]
@@ -129,6 +127,8 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 			continue
 		}
 		value := values.Get(fieldName)
+
+		fieldVal := indirectVal.Field(i)
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 
@@ -187,8 +187,6 @@ func structToValues(source interface{}) (values url.Values, err error) {
 			continue
 		}
 
-		fieldVal := indirectVal.Field(i)
-
 		fieldName := toJSONFieldName(field.Name)
 		if v, ok := field.Tag.Lookup("json"); ok {
 			s := strings.SplitN(v, ",", 2)[0]
@@ -200,6 +198,8 @@ func structToValues(source interface{}) (values url.Values, err error) {
 				fieldName = s
 			}
 		}
+
+		fieldVal := indirectVal.Field(i)
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 
