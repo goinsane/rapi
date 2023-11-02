@@ -18,16 +18,19 @@ type PingReply struct {
 	Payload string
 }
 
-type TestRequest struct {
-	X int
-	T time.Time
-	B []byte
+type ReverseRequest struct {
+	String string `json:"string"`
 }
 
-type TestReply struct {
-	X  int
-	T  time.Time
-	B  []byte
-	BS string
-	D  time.Duration
+type ReverseReply struct {
+	ReversedString string `json:"reversedString"`
+}
+
+type NowRequest struct {
+	Time  *time.Time    `json:"time"`
+	Drift time.Duration `json:"drift"`
+}
+
+type NowReply struct {
+	Now time.Time `json:"now"`
 }
