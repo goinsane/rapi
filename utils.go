@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type nopWriteCloser struct {
@@ -114,13 +115,14 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 
 		var fieldName string
 		if v, ok := field.Tag.Lookup("json"); ok {
-			fieldName = strings.TrimSpace(strings.SplitN(v, ",", 2)[0])
+			fieldName = strings.SplitN(v, ",", 2)[0]
 		} else {
-			fieldName = strings.ReplaceAll(field.Name, "_", "")
+			fieldName = field.Name
 		}
 		if fieldName == "-" {
 			continue
 		}
+		fieldName = toJSONFieldName(fieldName)
 
 		if !values.Has(fieldName) {
 			continue
@@ -188,13 +190,14 @@ func structToValues(source interface{}) (values url.Values, err error) {
 
 		var fieldName string
 		if v, ok := field.Tag.Lookup("json"); ok {
-			fieldName = strings.TrimSpace(strings.SplitN(v, ",", 2)[0])
+			fieldName = strings.SplitN(v, ",", 2)[0]
 		} else {
-			fieldName = strings.ReplaceAll(field.Name, "_", "")
+			fieldName = field.Name
 		}
 		if fieldName == "-" {
 			continue
 		}
+		fieldName = toJSONFieldName(fieldName)
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 
@@ -230,6 +233,21 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	}
 
 	return values, nil
+}
+
+func toJSONFieldName(s string) string {
+	sl := []rune(s)
+	result := make([]rune, 0, len(sl))
+	for _, r := range sl {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && !(unicode.IsPunct(r) && r <= unicode.MaxASCII) {
+			continue
+		}
+		if r == '?' || r == '\\' || r == ',' {
+			continue
+		}
+		result = append(result, r)
+	}
+	return string(result)
 }
 
 func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteCloser, err error) {
