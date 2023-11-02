@@ -113,16 +113,17 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 
 		fieldVal := indirectVal.Field(i)
 
-		var fieldName string
+		fieldName := toJSONFieldName(field.Name)
 		if v, ok := field.Tag.Lookup("json"); ok {
-			fieldName = strings.SplitN(v, ",", 2)[0]
-		} else {
-			fieldName = field.Name
+			s := strings.SplitN(v, ",", 2)[0]
+			if s == "-" {
+				continue
+			}
+			s = toJSONFieldName(s)
+			if s != "" {
+				fieldName = s
+			}
 		}
-		if fieldName == "-" {
-			continue
-		}
-		fieldName = toJSONFieldName(fieldName)
 
 		if !values.Has(fieldName) {
 			continue
@@ -188,16 +189,17 @@ func structToValues(source interface{}) (values url.Values, err error) {
 
 		fieldVal := indirectVal.Field(i)
 
-		var fieldName string
+		fieldName := toJSONFieldName(field.Name)
 		if v, ok := field.Tag.Lookup("json"); ok {
-			fieldName = strings.SplitN(v, ",", 2)[0]
-		} else {
-			fieldName = field.Name
+			s := strings.SplitN(v, ",", 2)[0]
+			if s == "-" {
+				continue
+			}
+			s = toJSONFieldName(s)
+			if s != "" {
+				fieldName = s
+			}
 		}
-		if fieldName == "-" {
-			continue
-		}
-		fieldName = toJSONFieldName(fieldName)
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 
