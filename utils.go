@@ -51,6 +51,7 @@ func validateJSONContentType(contentType string) error {
 	return nil
 }
 
+// copyReflectValue copies val and always returns pointer value if val is not pointer.
 func copyReflectValue(val reflect.Value) reflect.Value {
 	if !val.IsValid() {
 		return reflect.ValueOf(new(interface{}))

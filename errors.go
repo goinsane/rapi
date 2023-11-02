@@ -3,6 +3,7 @@ package rapi
 import "fmt"
 
 // RequestError is the request error from http.Client.
+// It is returned from Caller.Call.
 type RequestError struct{ error }
 
 // Error is the implementation of error.
