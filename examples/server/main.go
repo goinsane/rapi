@@ -9,8 +9,6 @@ import (
 	"github.com/goinsane/rapi/examples/messages"
 )
 
-var startTime = time.Now()
-
 func main() {
 	var err error
 
