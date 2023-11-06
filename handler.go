@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -122,7 +121,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
-			panic(errors.New("already sent"))
+			return
 		}
 
 		for _, hdr := range header {
