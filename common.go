@@ -17,10 +17,10 @@ type Response struct {
 	Out  interface{}
 }
 
-// DoFunc is a function type to handle requests from Handler.
+// DoFunc is a function type to process requests from Handler.
 type DoFunc func(req *Request, send SendFunc)
 
-// MiddlewareFunc is a function type to handle middleware requests from Handler.
+// MiddlewareFunc is a function type to process requests as middleware from Handler.
 type MiddlewareFunc func(req *Request, send SendFunc, do DoFunc)
 
 // SendFunc is a function type to send response in DoFunc or MiddlewareFunc.

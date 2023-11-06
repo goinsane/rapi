@@ -65,6 +65,7 @@ func (o *callOptions) Clone() *callOptions {
 	return result
 }
 
+// WithRequestHeader returns a CallOption that sets the given http headers to the request headers.
 func WithRequestHeader(header ...http.Header) CallOption {
 	return newFuncCallOption(func(options *callOptions) {
 		for _, hdr := range header {
@@ -76,6 +77,7 @@ func WithRequestHeader(header ...http.Header) CallOption {
 	})
 }
 
+// WithAdditionalRequestHeader returns a CallOption that adds the given http headers to the request headers.
 func WithAdditionalRequestHeader(header ...http.Header) CallOption {
 	return newFuncCallOption(func(options *callOptions) {
 		for _, hdr := range header {
@@ -88,18 +90,21 @@ func WithAdditionalRequestHeader(header ...http.Header) CallOption {
 	})
 }
 
+// WithMaxResponseBodySize returns a CallOption that limits maximum response body size.
 func WithMaxResponseBodySize(maxResponseBodySize int64) CallOption {
 	return newFuncCallOption(func(options *callOptions) {
 		options.MaxResponseBodySize = maxResponseBodySize
 	})
 }
 
+// WithErrOut returns a CallOption that defines the error output to return as Caller.Call error.
 func WithErrOut(errOut error) CallOption {
 	return newFuncCallOption(func(options *callOptions) {
 		options.ErrOut = errOut
 	})
 }
 
+// WithForceBody returns a CallOption that forces sending input in the request body for all methods including HEAD and GET.
 func WithForceBody(forceBody bool) CallOption {
 	return newFuncCallOption(func(options *callOptions) {
 		options.ForceBody = forceBody

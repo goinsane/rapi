@@ -23,6 +23,7 @@ type nopWriteCloser struct {
 
 func (nopWriteCloser) Close() error { return nil }
 
+// httpError writes the http error to the http.ResponseWriter according to the request method.
 func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 	if r.Method == http.MethodHead {
 		w.WriteHeader(code)
@@ -31,6 +32,7 @@ func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 	http.Error(w, error, code)
 }
 
+// validateJSONContentType validates whether the content type is 'application/json; charset=utf-8'.
 func validateJSONContentType(contentType string) error {
 	mediatype, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
@@ -82,6 +84,7 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 	return copiedVal
 }
 
+// valuesToStruct puts url.Values to the given struct.
 func valuesToStruct(values url.Values, target interface{}) (err error) {
 	if target == nil {
 		panic(errors.New("target is nil"))
@@ -156,6 +159,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 	return nil
 }
 
+// structToValues returns url.Values containing struct fields as values.
 func structToValues(source interface{}) (values url.Values, err error) {
 	if source == nil {
 		panic(errors.New("source is nil"))
@@ -237,6 +241,7 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	return values, nil
 }
 
+// toJSONFieldName converts the given string to JSON field name.
 func toJSONFieldName(s string) string {
 	sl := []rune(s)
 	result := make([]rune, 0, len(sl))
@@ -252,6 +257,7 @@ func toJSONFieldName(s string) string {
 	return string(result)
 }
 
+// getContentEncoder returns the content encoder according to the given http.Request for the given http.ResponseWriter.
 func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteCloser, err error) {
 	w1 := nopWriteCloser{w}
 

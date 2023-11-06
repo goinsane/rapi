@@ -74,36 +74,42 @@ func (o *handlerOptions) PerformError(err error, req *http.Request) {
 	}
 }
 
+// WithOnError returns a HandlerOption that sets the function to be called on error.
 func WithOnError(onError func(error, *http.Request)) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.OnError = onError
 	})
 }
 
+// WithMiddleware returns a HandlerOption that adds middlewares.
 func WithMiddleware(middleware ...MiddlewareFunc) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.Middleware = append(options.Middleware, middleware...)
 	})
 }
 
+// WithMaxRequestBodySize returns a HandlerOption that limits maximum request body size.
 func WithMaxRequestBodySize(maxRequestBodySize int64) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.MaxRequestBodySize = maxRequestBodySize
 	})
 }
 
+// WithRequestTimeout returns a HandlerOption that limits maximum request duration.
 func WithRequestTimeout(requestTimeout time.Duration) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.RequestTimeout = requestTimeout
 	})
 }
 
+// WithResponseTimeout returns a HandlerOption that limits maximum response duration.
 func WithResponseTimeout(responseTimeout time.Duration) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.ResponseTimeout = responseTimeout
 	})
 }
 
+// WithAllowEncoding returns a HandlerOption that allows encoded content types such as gzip to be returned.
 func WithAllowEncoding(allowEncoding bool) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.AllowEncoding = allowEncoding
