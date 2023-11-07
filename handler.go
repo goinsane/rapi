@@ -44,8 +44,9 @@ func (h *Handler) Handle(pattern string, opts ...HandlerOption) Registrar {
 	return &struct{ Registrar }{ph}
 }
 
-// Registrar is method registrar and created by Handler.
+// Registrar is method registrar and created by Handler.Handle.
 type Registrar interface {
+	// Register registers method with the given parameters to Handler. The pattern was given from Handler.Handle.
 	Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar
 }
 
