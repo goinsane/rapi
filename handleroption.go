@@ -1,6 +1,7 @@
 package rapi
 
 import (
+	"net/http"
 	"time"
 )
 
@@ -39,7 +40,7 @@ func (o *joinHandlerOption) apply(options *handlerOptions) {
 }
 
 type handlerOptions struct {
-	OnError            func(err error, req *Request)
+	OnError            func(err error, req *http.Request)
 	Middleware         []MiddlewareFunc
 	MaxRequestBodySize int64
 	RequestTimeout     time.Duration
@@ -67,14 +68,14 @@ func (o *handlerOptions) Clone() *handlerOptions {
 	return result
 }
 
-func (o *handlerOptions) PerformError(err error, req *Request) {
+func (o *handlerOptions) PerformError(err error, req *http.Request) {
 	if o.OnError != nil {
 		o.OnError(err, req)
 	}
 }
 
 // WithOnError returns a HandlerOption that sets the function to be called on error.
-func WithOnError(onError func(error, *Request)) HandlerOption {
+func WithOnError(onError func(error, *http.Request)) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.OnError = onError
 	})
