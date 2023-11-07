@@ -171,10 +171,10 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		respCtx, respCancel := context.WithCancel(context.Background())
 		defer respCancel()
 
-		if h.options.ResponseTimeout > 0 {
+		if h.options.WriteTimeout > 0 {
 			go func() {
 				select {
-				case <-time.After(h.options.ResponseTimeout):
+				case <-time.After(h.options.WriteTimeout):
 					respCancel()
 				case <-respCtx.Done():
 				}

@@ -45,7 +45,7 @@ type handlerOptions struct {
 	Middleware         []MiddlewareFunc
 	MaxRequestBodySize int64
 	ReadTimeout        time.Duration
-	ResponseTimeout    time.Duration
+	WriteTimeout       time.Duration
 	AllowEncoding      bool
 }
 
@@ -62,7 +62,7 @@ func (o *handlerOptions) Clone() *handlerOptions {
 		Middleware:         make([]MiddlewareFunc, len(o.Middleware)),
 		MaxRequestBodySize: o.MaxRequestBodySize,
 		ReadTimeout:        o.ReadTimeout,
-		ResponseTimeout:    o.ResponseTimeout,
+		WriteTimeout:       o.WriteTimeout,
 		AllowEncoding:      o.AllowEncoding,
 	}
 	copy(result.Middleware, o.Middleware)
@@ -103,10 +103,10 @@ func WithReadTimeout(readTimeout time.Duration) HandlerOption {
 	})
 }
 
-// WithResponseTimeout returns a HandlerOption that limits maximum response duration.
-func WithResponseTimeout(responseTimeout time.Duration) HandlerOption {
+// WithWriteTimeout returns a HandlerOption that limits maximum response body write duration.
+func WithWriteTimeout(writeTimeout time.Duration) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
-		options.ResponseTimeout = responseTimeout
+		options.WriteTimeout = writeTimeout
 	})
 }
 
