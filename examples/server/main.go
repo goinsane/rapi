@@ -50,7 +50,7 @@ func main() {
 }
 
 func handleUnimplemented(req *rapi.Request, send rapi.SendFunc) {
-	send(&messages.ErrorResponse{
+	send(&messages.ErrorReply{
 		ErrorMsg: http.StatusText(http.StatusNotImplemented),
 	}, http.StatusNotImplemented)
 }

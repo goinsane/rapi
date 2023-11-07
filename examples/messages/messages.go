@@ -2,11 +2,11 @@ package messages
 
 import "time"
 
-type ErrorResponse struct {
+type ErrorReply struct {
 	ErrorMsg string `json:"error"`
 }
 
-func (r *ErrorResponse) Error() string {
+func (r *ErrorReply) Error() string {
 	return r.ErrorMsg
 }
 
