@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// HandlerOption sets options such as middleware, request timeout, etc.
+// HandlerOption sets options such as middleware, read timeout, etc.
 type HandlerOption interface {
 	apply(*handlerOptions)
 }
@@ -44,13 +44,15 @@ type handlerOptions struct {
 	OnError            func(err error, req *http.Request)
 	Middleware         []MiddlewareFunc
 	MaxRequestBodySize int64
-	RequestTimeout     time.Duration
-	ResponseTimeout    time.Duration
+	ReadTimeout        time.Duration
+	WriteTimeout       time.Duration
 	AllowEncoding      bool
 }
 
 func newHandlerOptions() (o *handlerOptions) {
-	return &handlerOptions{}
+	return &handlerOptions{
+		AllowEncoding: true,
+	}
 }
 
 func (o *handlerOptions) Clone() *handlerOptions {
@@ -61,8 +63,8 @@ func (o *handlerOptions) Clone() *handlerOptions {
 		OnError:            o.OnError,
 		Middleware:         make([]MiddlewareFunc, len(o.Middleware)),
 		MaxRequestBodySize: o.MaxRequestBodySize,
-		RequestTimeout:     o.RequestTimeout,
-		ResponseTimeout:    o.ResponseTimeout,
+		ReadTimeout:        o.ReadTimeout,
+		WriteTimeout:       o.WriteTimeout,
 		AllowEncoding:      o.AllowEncoding,
 	}
 	copy(result.Middleware, o.Middleware)
@@ -96,21 +98,22 @@ func WithMaxRequestBodySize(maxRequestBodySize int64) HandlerOption {
 	})
 }
 
-// WithRequestTimeout returns a HandlerOption that limits maximum request duration.
-func WithRequestTimeout(requestTimeout time.Duration) HandlerOption {
+// WithReadTimeout returns a HandlerOption that limits maximum request body read duration.
+func WithReadTimeout(readTimeout time.Duration) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
-		options.RequestTimeout = requestTimeout
+		options.ReadTimeout = readTimeout
 	})
 }
 
-// WithResponseTimeout returns a HandlerOption that limits maximum response duration.
-func WithResponseTimeout(responseTimeout time.Duration) HandlerOption {
+// WithWriteTimeout returns a HandlerOption that limits maximum response body write duration.
+func WithWriteTimeout(writeTimeout time.Duration) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
-		options.ResponseTimeout = responseTimeout
+		options.WriteTimeout = writeTimeout
 	})
 }
 
 // WithAllowEncoding returns a HandlerOption that allows encoded content types such as gzip to be returned.
+// By default, encoding is allowed.
 func WithAllowEncoding(allowEncoding bool) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.AllowEncoding = allowEncoding

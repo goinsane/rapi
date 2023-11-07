@@ -17,8 +17,8 @@ func main() {
 			log.Print(err)
 		}),
 		rapi.WithMaxRequestBodySize(1<<20),
-		rapi.WithRequestTimeout(60*time.Second),
-		rapi.WithResponseTimeout(60*time.Second),
+		rapi.WithReadTimeout(60*time.Second),
+		rapi.WithWriteTimeout(60*time.Second),
 		rapi.WithAllowEncoding(true),
 	)
 

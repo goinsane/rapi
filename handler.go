@@ -171,10 +171,10 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		respCtx, respCancel := context.WithCancel(context.Background())
 		defer respCancel()
 
-		if h.options.ResponseTimeout > 0 {
+		if h.options.WriteTimeout > 0 {
 			go func() {
 				select {
-				case <-time.After(h.options.ResponseTimeout):
+				case <-time.After(h.options.WriteTimeout):
 					respCancel()
 				case <-respCtx.Done():
 				}
@@ -229,10 +229,10 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			rd = io.LimitReader(r.Body, h.options.MaxRequestBodySize)
 		}
 		completed := make(chan struct{})
-		if h.options.RequestTimeout > 0 {
+		if h.options.ReadTimeout > 0 {
 			go func() {
 				select {
-				case <-time.After(h.options.RequestTimeout):
+				case <-time.After(h.options.ReadTimeout):
 					_ = r.Body.Close()
 				case <-completed:
 				}
