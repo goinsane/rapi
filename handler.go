@@ -211,6 +211,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	inVal := reflect.ValueOf(h.in)
 	copiedInVal := copyReflectValue(inVal)
 
+	var data []byte
 	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet) {
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
@@ -234,7 +235,6 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}()
 		}
-		var data []byte
 		data, err = io.ReadAll(rd)
 		close(completed)
 		if err != nil {
@@ -261,6 +261,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	req := &Request{
 		Request: r,
+		Data:    data,
 		In:      in,
 	}
 
