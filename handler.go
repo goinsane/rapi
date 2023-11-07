@@ -73,8 +73,12 @@ func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	h.methodHandlersMu.RUnlock()
 
+	req := &Request{
+		Request: r,
+	}
+
 	if mh == nil {
-		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
+		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), req)
 		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -117,6 +121,10 @@ func newMethodhandler(in interface{}, do DoFunc, options *handlerOptions, opts .
 func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 
+	req := &Request{
+		Request: r,
+	}
+
 	var sent int32
 	send := func(out interface{}, code int, header ...http.Header) {
 		var err error
@@ -141,7 +149,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var data []byte
 		data, err = json.Marshal(out)
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), r)
+			h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), req)
 			httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -153,7 +161,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if h.options.AllowEncoding {
 			wr, err = getContentEncoder(w, r)
 			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
+				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), req)
 				httpError(r, w, "invalid accept encoding", http.StatusBadRequest)
 				return
 			}
@@ -184,13 +192,13 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			_, err = io.Copy(wr, bytes.NewBuffer(data))
 			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
+				h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), req)
 				return
 			}
 
 			err = wr.Close()
 			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
+				h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), req)
 				return
 			}
 		}()
@@ -202,7 +210,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if contentType != "" {
 		err = validateJSONContentType(contentType)
 		if err != nil {
-			h.options.PerformError(&InvalidContentTypeError{err, contentType}, r)
+			h.options.PerformError(&InvalidContentTypeError{err, contentType}, req)
 			httpError(r, w, "invalid content type", http.StatusBadRequest)
 			return
 		}
@@ -211,12 +219,11 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	inVal := reflect.ValueOf(h.in)
 	copiedInVal := copyReflectValue(inVal)
 
-	var data []byte
 	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet) {
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
+			h.options.PerformError(fmt.Errorf("invalid query: %w", err), req)
 			httpError(r, w, "invalid query", http.StatusBadRequest)
 			return
 		}
@@ -235,17 +242,19 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}()
 		}
+		var data []byte
 		data, err = io.ReadAll(rd)
 		close(completed)
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), r)
+			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), req)
 			httpError(r, w, "unable to read request body", http.StatusBadRequest)
 			return
 		}
+		req.Data = data
 		if len(data) > 0 {
 			err = json.Unmarshal(data, copiedInVal.Interface())
 			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
+				h.options.PerformError(fmt.Errorf("unable to unmarshal request body: %w", err), req)
 				httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
 				return
 			}
@@ -259,11 +268,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		in = copiedInVal.Elem().Interface()
 	}
 
-	req := &Request{
-		Request: r,
-		Data:    data,
-		In:      in,
-	}
+	req.In = in
 
 	do := []DoFunc{
 		func(req *Request, send SendFunc) {

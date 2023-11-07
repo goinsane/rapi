@@ -13,7 +13,7 @@ func main() {
 	var err error
 
 	handler := rapi.NewHandler(
-		rapi.WithOnError(func(err error, req *http.Request) {
+		rapi.WithOnError(func(err error, req *rapi.Request) {
 			log.Print(err)
 		}),
 		rapi.WithMaxRequestBodySize(1<<20),
