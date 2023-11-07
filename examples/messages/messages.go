@@ -11,11 +11,11 @@ func (r *ErrorReply) Error() string {
 }
 
 type PingRequest struct {
-	Payload string
+	Payload string `json:"payload"`
 }
 
 type PingReply struct {
-	Payload string
+	Payload string `json:"payload"`
 }
 
 type ReverseRequest struct {
