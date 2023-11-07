@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// HandlerOption sets options such as middleware, request timeout, etc.
 type HandlerOption interface {
 	apply(*handlerOptions)
 }
