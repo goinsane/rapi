@@ -114,16 +114,9 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 			continue
 		}
 
-		fieldName := toJSONFieldName(field.Name)
-		if v, ok := field.Tag.Lookup("json"); ok {
-			s := strings.SplitN(v, ",", 2)[0]
-			if s == "-" {
-				continue
-			}
-			s = toJSONFieldName(s)
-			if s != "" {
-				fieldName = s
-			}
+		fieldName := getJSONFieldName(field)
+		if fieldName == "" {
+			continue
 		}
 
 		if !values.Has(fieldName) {
@@ -191,16 +184,9 @@ func structToValues(source interface{}) (values url.Values, err error) {
 			continue
 		}
 
-		fieldName := toJSONFieldName(field.Name)
-		if v, ok := field.Tag.Lookup("json"); ok {
-			s := strings.SplitN(v, ",", 2)[0]
-			if s == "-" {
-				continue
-			}
-			s = toJSONFieldName(s)
-			if s != "" {
-				fieldName = s
-			}
+		fieldName := getJSONFieldName(field)
+		if fieldName == "" {
+			continue
 		}
 
 		fieldVal := indirectVal.Field(i)
@@ -241,7 +227,23 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	return values, nil
 }
 
-// toJSONFieldName converts the given string to JSON field name.
+// getJSONFieldName retrieves the JSON field name from the structure field.
+func getJSONFieldName(sf reflect.StructField) string {
+	fieldName := toJSONFieldName(sf.Name)
+	if v, ok := sf.Tag.Lookup("json"); ok {
+		s := strings.SplitN(v, ",", 2)[0]
+		if s == "-" {
+			return ""
+		}
+		s = toJSONFieldName(s)
+		if s != "" {
+			fieldName = s
+		}
+	}
+	return fieldName
+}
+
+// toJSONFieldName converts the given string to the JSON field name.
 func toJSONFieldName(s string) string {
 	sl := []rune(s)
 	result := make([]rune, 0, len(sl))

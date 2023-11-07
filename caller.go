@@ -72,7 +72,6 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 
 	result = &Response{
 		Response: resp,
-		Out:      nil,
 	}
 
 	var rd io.Reader = resp.Body

@@ -44,8 +44,9 @@ func (h *Handler) Handle(pattern string, opts ...HandlerOption) Registrar {
 	return &struct{ Registrar }{ph}
 }
 
-// Registrar is method registrar and created by Handler.
+// Registrar is method registrar and created by Handler.Handle.
 type Registrar interface {
+	// Register registers method with the given parameters to Handler. The pattern was given from Handler.Handle.
 	Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar
 }
 
@@ -115,6 +116,10 @@ func newMethodhandler(in interface{}, do DoFunc, options *handlerOptions, opts .
 
 func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
+
+	req := &Request{
+		Request: r,
+	}
 
 	var sent int32
 	send := func(out interface{}, code int, header ...http.Header) {
@@ -241,6 +246,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			httpError(r, w, "unable to read request body", http.StatusBadRequest)
 			return
 		}
+		req.Data = data
 		if len(data) > 0 {
 			err = json.Unmarshal(data, copiedInVal.Interface())
 			if err != nil {
@@ -258,10 +264,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		in = copiedInVal.Elem().Interface()
 	}
 
-	req := &Request{
-		Request: r,
-		In:      in,
-	}
+	req.In = in
 
 	do := []DoFunc{
 		func(req *Request, send SendFunc) {

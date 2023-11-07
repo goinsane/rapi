@@ -6,7 +6,8 @@ import "net/http"
 // It is used in DoFunc and MiddlewareFunc.
 type Request struct {
 	*http.Request
-	In interface{}
+	Data []byte
+	In   interface{}
 }
 
 // Response encapsulates http.Response and gives data and output from response.

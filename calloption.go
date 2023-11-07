@@ -5,6 +5,7 @@ import (
 	"net/textproto"
 )
 
+// CallOption configures how we set up the http call.
 type CallOption interface {
 	apply(*callOptions)
 }

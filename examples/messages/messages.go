@@ -2,20 +2,20 @@ package messages
 
 import "time"
 
-type ErrorResponse struct {
+type ErrorReply struct {
 	ErrorMsg string `json:"error"`
 }
 
-func (r *ErrorResponse) Error() string {
+func (r *ErrorReply) Error() string {
 	return r.ErrorMsg
 }
 
 type PingRequest struct {
-	Payload string
+	Payload string `json:"payload"`
 }
 
 type PingReply struct {
-	Payload string
+	Payload string `json:"payload"`
 }
 
 type ReverseRequest struct {

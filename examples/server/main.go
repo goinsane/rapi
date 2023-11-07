@@ -19,12 +19,13 @@ func main() {
 		rapi.WithMaxRequestBodySize(1<<20),
 		rapi.WithRequestTimeout(60*time.Second),
 		rapi.WithResponseTimeout(60*time.Second),
-		rapi.WithAllowEncoding(true))
+		rapi.WithAllowEncoding(true),
+	)
 
 	handler.Handle("/").
 		Register("", nil, handleUnimplemented)
 
-	handler.Handle("/echo").
+	handler.Handle("/echo", rapi.WithMiddleware(authMiddleware)).
 		Register("", nil, handleEcho)
 
 	handler.Handle("/ping").
@@ -49,8 +50,18 @@ func main() {
 	}
 }
 
+func authMiddleware(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
+	if req.Header.Get("X-API-Key") != "1234" {
+		send(&messages.ErrorReply{
+			ErrorMsg: "unauthorized by api key",
+		}, http.StatusUnauthorized)
+		return
+	}
+	do(req, send)
+}
+
 func handleUnimplemented(req *rapi.Request, send rapi.SendFunc) {
-	send(&messages.ErrorResponse{
+	send(&messages.ErrorReply{
 		ErrorMsg: http.StatusText(http.StatusNotImplemented),
 	}, http.StatusNotImplemented)
 }
