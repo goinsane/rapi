@@ -50,7 +50,9 @@ type handlerOptions struct {
 }
 
 func newHandlerOptions() (o *handlerOptions) {
-	return &handlerOptions{}
+	return &handlerOptions{
+		AllowEncoding: true,
+	}
 }
 
 func (o *handlerOptions) Clone() *handlerOptions {
@@ -111,6 +113,7 @@ func WithWriteTimeout(writeTimeout time.Duration) HandlerOption {
 }
 
 // WithAllowEncoding returns a HandlerOption that allows encoded content types such as gzip to be returned.
+// By default, encoding is allowed.
 func WithAllowEncoding(allowEncoding bool) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.AllowEncoding = allowEncoding
