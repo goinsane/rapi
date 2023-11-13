@@ -156,11 +156,11 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		w.Header().Del("Content-Length")
-
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if wc == nopwc {
 			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
+		} else {
+			w.Header().Del("Content-Length")
 		}
 		w.WriteHeader(code)
 		if r.Method == http.MethodHead {
