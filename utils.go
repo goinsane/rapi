@@ -256,10 +256,10 @@ func toJSONFieldName(s string) string {
 
 // getContentEncoder returns the content encoder according to the given http.Request for the given http.ResponseWriter.
 func getContentEncoder(w http.ResponseWriter, r *http.Request) (result io.WriteCloser, err error) {
-	w1 := nopWriteCloser{w}
+	wc := nopWriteCloser{w}
 
 	defer func() {
-		if err == nil && result != w1 {
+		if err == nil && result != wc {
 			w.Header().Del("Content-Length")
 		}
 	}()
@@ -306,5 +306,5 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (result io.WriteC
 		}
 	}
 
-	return w1, nil
+	return wc, nil
 }
