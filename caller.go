@@ -43,14 +43,12 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	if inVal := reflect.ValueOf(in); !options.ForceBody &&
 		(in == nil || inVal.Kind() == reflect.Struct || (inVal.Kind() == reflect.Ptr && inVal.Elem().Kind() == reflect.Struct)) &&
 		(c.method == http.MethodHead || c.method == http.MethodGet) {
-		if in != nil {
-			var values url.Values
-			values, err = structToValues(in)
-			if err != nil {
-				return nil, fmt.Errorf("unable to set input to values: %w", err)
-			}
-			req.URL.RawQuery = values.Encode()
+		var values url.Values
+		values, err = structToValues(in)
+		if err != nil {
+			return nil, fmt.Errorf("unable to set input to values: %w", err)
 		}
+		req.URL.RawQuery = values.Encode()
 	} else {
 		data, err = json.Marshal(in)
 		if err != nil {
