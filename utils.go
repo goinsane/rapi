@@ -55,9 +55,9 @@ func validateJSONContentType(contentType string) error {
 }
 
 // copyReflectValue copies val and always returns pointer value if val is not pointer.
-func copyReflectValue(val reflect.Value) reflect.Value {
+func copyReflectValue(val reflect.Value) (copiedVal reflect.Value, err error) {
 	if !val.IsValid() {
-		return reflect.ValueOf(new(interface{}))
+		return reflect.ValueOf(new(interface{})), nil
 	}
 
 	var indirectVal reflect.Value
@@ -65,23 +65,23 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
-			return reflect.New(val.Type().Elem())
+			return reflect.New(val.Type().Elem()), nil
 		}
 		indirectVal = val.Elem()
 	}
 
-	copiedVal := reflect.New(indirectVal.Type())
+	copiedVal = reflect.New(indirectVal.Type())
 
 	data, err := json.Marshal(indirectVal.Interface())
 	if err != nil {
-		panic(fmt.Errorf("unable to marshal value: %w", err))
+		return copiedVal, fmt.Errorf("json marshal error: %w", err)
 	}
 	err = json.Unmarshal(data, copiedVal.Interface())
 	if err != nil {
-		panic(fmt.Errorf("unable to unmarshal value data: %w", err))
+		return copiedVal, fmt.Errorf("json unmarshal error: %w", err)
 	}
 
-	return copiedVal
+	return copiedVal, nil
 }
 
 // valuesToStruct puts url.Values to the given struct.

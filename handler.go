@@ -214,7 +214,12 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	inVal := reflect.ValueOf(h.in)
-	copiedInVal := copyReflectValue(inVal)
+	copiedInVal, err := copyReflectValue(inVal)
+	if err != nil {
+		h.options.PerformError(fmt.Errorf("unable to copy input: %w", err), r)
+		httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
 	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet) {
