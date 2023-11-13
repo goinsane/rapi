@@ -17,62 +17,6 @@ import (
 	"unicode"
 )
 
-// nopWriteCloser implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
-type nopWriteCloser struct {
-	io.Writer
-}
-
-// Close is the implementation of io.WriteCloser.
-func (nopWriteCloser) Close() error { return nil }
-
-// httpHeaderOption defines single http header option.
-type httpHeaderOption struct {
-	KeyVals []httpHeaderOptionKeyVal
-	Map     map[string]string
-}
-
-// httpHeaderOptionKeyVal is a key-value holder for httpHeaderOption.
-type httpHeaderOptionKeyVal struct {
-	Key string
-	Val string
-}
-
-// parseHTTPHeaderOptions parses single http header to return list of httpHeaderOption's.
-func parseHTTPHeaderOptions(directive string) (options []httpHeaderOption) {
-	options = []httpHeaderOption{}
-
-	for _, o := range strings.Split(directive, ",") {
-		o = strings.TrimSpace(o)
-		option := &httpHeaderOption{
-			KeyVals: []httpHeaderOptionKeyVal{},
-			Map:     map[string]string{},
-		}
-		for _, kv := range strings.Split(o, ";") {
-			kv = strings.TrimSpace(kv)
-			kvs := strings.SplitN(kv, "=", 2)
-			optionKeyVal := &httpHeaderOptionKeyVal{
-				Key: strings.TrimSpace(kvs[0]),
-			}
-			if optionKeyVal.Key == "" {
-				continue
-			}
-			if len(kvs) > 1 {
-				optionKeyVal.Val = strings.TrimSpace(kvs[1])
-			}
-			option.KeyVals = append(option.KeyVals, *optionKeyVal)
-			if _, ok := option.Map[optionKeyVal.Key]; !ok {
-				option.Map[optionKeyVal.Key] = optionKeyVal.Val
-			}
-		}
-		if len(option.KeyVals) <= 0 {
-			continue
-		}
-		options = append(options, *option)
-	}
-
-	return
-}
-
 // httpError writes the http error to the http.ResponseWriter according to the request method.
 func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 	if r.Method == http.MethodHead {
@@ -357,4 +301,60 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (result io.WriteC
 	}
 
 	return wc, nil
+}
+
+// nopWriteCloser implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
+type nopWriteCloser struct {
+	io.Writer
+}
+
+// Close is the implementation of io.WriteCloser.
+func (nopWriteCloser) Close() error { return nil }
+
+// httpHeaderOption defines single http header option.
+type httpHeaderOption struct {
+	KeyVals []httpHeaderOptionKeyVal
+	Map     map[string]string
+}
+
+// httpHeaderOptionKeyVal is a key-value holder for httpHeaderOption.
+type httpHeaderOptionKeyVal struct {
+	Key string
+	Val string
+}
+
+// parseHTTPHeaderOptions parses single http header to return list of httpHeaderOption's.
+func parseHTTPHeaderOptions(directive string) (options []httpHeaderOption) {
+	options = []httpHeaderOption{}
+
+	for _, o := range strings.Split(directive, ",") {
+		o = strings.TrimSpace(o)
+		option := &httpHeaderOption{
+			KeyVals: []httpHeaderOptionKeyVal{},
+			Map:     map[string]string{},
+		}
+		for _, kv := range strings.Split(o, ";") {
+			kv = strings.TrimSpace(kv)
+			kvs := strings.SplitN(kv, "=", 2)
+			optionKeyVal := &httpHeaderOptionKeyVal{
+				Key: strings.TrimSpace(kvs[0]),
+			}
+			if optionKeyVal.Key == "" {
+				continue
+			}
+			if len(kvs) > 1 {
+				optionKeyVal.Val = strings.TrimSpace(kvs[1])
+			}
+			option.KeyVals = append(option.KeyVals, *optionKeyVal)
+			if _, ok := option.Map[optionKeyVal.Key]; !ok {
+				option.Map[optionKeyVal.Key] = optionKeyVal.Val
+			}
+		}
+		if len(option.KeyVals) <= 0 {
+			continue
+		}
+		options = append(options, *option)
+	}
+
+	return
 }
