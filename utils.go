@@ -55,9 +55,9 @@ func validateJSONContentType(contentType string) error {
 }
 
 // copyReflectValue copies val and always returns pointer value if val is not pointer.
-func copyReflectValue(val reflect.Value) reflect.Value {
+func copyReflectValue(val reflect.Value) (copiedVal reflect.Value, err error) {
 	if !val.IsValid() {
-		return reflect.ValueOf(new(interface{}))
+		return reflect.ValueOf(new(interface{})), nil
 	}
 
 	var indirectVal reflect.Value
@@ -65,23 +65,23 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
-			panic(errors.New("pointer value is nil"))
+			return reflect.New(val.Type().Elem()), nil
 		}
 		indirectVal = val.Elem()
 	}
 
-	copiedVal := reflect.New(indirectVal.Type())
+	copiedVal = reflect.New(indirectVal.Type())
 
 	data, err := json.Marshal(indirectVal.Interface())
 	if err != nil {
-		panic(fmt.Errorf("unable to marshal value: %w", err))
+		return copiedVal, fmt.Errorf("json marshal error: %w", err)
 	}
 	err = json.Unmarshal(data, copiedVal.Interface())
 	if err != nil {
-		panic(fmt.Errorf("unable to unmarshal value data: %w", err))
+		return copiedVal, fmt.Errorf("json unmarshal error: %w", err)
 	}
 
-	return copiedVal
+	return copiedVal, nil
 }
 
 // valuesToStruct puts url.Values to the given struct.
@@ -91,21 +91,16 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 	}
 
 	val := reflect.ValueOf(target)
+	typ := val.Type()
 
-	var indirectVal reflect.Value
-	if val.Kind() != reflect.Ptr {
-		panic(errors.New("target must be struct pointer"))
-	} else {
-		if val.IsNil() {
-			panic(errors.New("target pointer is nil"))
-		}
-		indirectVal = val.Elem()
-	}
-
-	if indirectVal.Kind() != reflect.Struct {
+	if typ.Kind() != reflect.Ptr || typ.Elem().Kind() != reflect.Struct {
 		panic(errors.New("target must be struct pointer"))
 	}
+	if val.IsNil() {
+		panic(errors.New("target struct pointer is nil"))
+	}
 
+	indirectVal := val.Elem()
 	indirectValType := indirectVal.Type()
 
 	for i, j := 0, indirectValType.NumField(); i < j; i++ {
@@ -154,29 +149,29 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 
 // structToValues returns url.Values containing struct fields as values.
 func structToValues(source interface{}) (values url.Values, err error) {
+	values = make(url.Values)
+
 	if source == nil {
-		panic(errors.New("source is nil"))
+		return values, nil
 	}
 
 	val := reflect.ValueOf(source)
+	typ := val.Type()
+
+	if typ.Kind() != reflect.Struct && !(typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Struct) {
+		panic(errors.New("source must be struct or struct pointer or nil"))
+	}
 
 	var indirectVal reflect.Value
 	if val.Kind() != reflect.Ptr {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
-			panic(errors.New("source pointer is nil"))
+			return values, nil
 		}
 		indirectVal = val.Elem()
 	}
-
-	if indirectVal.Kind() != reflect.Struct {
-		panic(errors.New("source must be struct or struct pointer"))
-	}
-
 	indirectValType := indirectVal.Type()
-
-	values = make(url.Values)
 
 	for i, j := 0, indirectValType.NumField(); i < j; i++ {
 		field := indirectValType.Field(i)
@@ -260,11 +255,11 @@ func toJSONFieldName(s string) string {
 }
 
 // getContentEncoder returns the content encoder according to the given http.Request for the given http.ResponseWriter.
-func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteCloser, err error) {
-	w1 := nopWriteCloser{w}
+func getContentEncoder(w http.ResponseWriter, r *http.Request) (result io.WriteCloser, err error) {
+	wc := nopWriteCloser{w}
 
 	defer func() {
-		if err == nil && w1 != wr {
+		if err == nil && result != wc {
 			w.Header().Del("Content-Length")
 		}
 	}()
@@ -291,8 +286,8 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteClose
 				}
 			}
 			w.Header().Set("Content-Encoding", key)
-			wr, _ = gzip.NewWriterLevel(w, level)
-			return wr, nil
+			result, _ = gzip.NewWriterLevel(w, level)
+			return result, nil
 
 		case "deflate":
 			level := flate.DefaultCompression
@@ -305,11 +300,11 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteClose
 				}
 			}
 			w.Header().Set("Content-Encoding", key)
-			wr, _ = flate.NewWriter(w, level)
-			return wr, nil
+			result, _ = flate.NewWriter(w, level)
+			return result, nil
 
 		}
 	}
 
-	return w1, nil
+	return wc, nil
 }

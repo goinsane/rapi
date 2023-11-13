@@ -42,7 +42,7 @@ func main() {
 			}))
 
 	handler.Handle("/now").
-		Register(http.MethodGet, &messages.NowRequest{}, handleNow)
+		Register(http.MethodGet, (*messages.NowRequest)(nil), handleNow)
 
 	err = http.ListenAndServe(":8080", handler)
 	if err != nil {

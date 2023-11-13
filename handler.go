@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -127,7 +126,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
-			panic(errors.New("already sent"))
+			return
 		}
 
 		for _, hdr := range header {
@@ -154,18 +153,18 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 
-		var wr io.WriteCloser = nopWriteCloser{w}
+		var wc io.WriteCloser = nopWriteCloser{w}
 		if h.options.AllowEncoding {
-			wr, err = getContentEncoder(w, r)
+			wc, err = getContentEncoder(w, r)
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
 				httpError(r, w, "invalid accept encoding", http.StatusBadRequest)
 				return
 			}
 		}
-		defer func(wr io.WriteCloser) {
-			_ = wr.Close()
-		}(wr)
+		defer func(wc io.WriteCloser) {
+			_ = wc.Close()
+		}(wc)
 
 		w.WriteHeader(code)
 
@@ -187,13 +186,13 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			var err error
 
-			_, err = io.Copy(wr, bytes.NewBuffer(data))
+			_, err = io.Copy(wc, bytes.NewBuffer(data))
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to write response body: %w", err), r)
 				return
 			}
 
-			err = wr.Close()
+			err = wc.Close()
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to write end of response body: %w", err), r)
 				return
@@ -214,7 +213,12 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	inVal := reflect.ValueOf(h.in)
-	copiedInVal := copyReflectValue(inVal)
+	copiedInVal, err := copyReflectValue(inVal)
+	if err != nil {
+		h.options.PerformError(fmt.Errorf("unable to copy input: %w", err), r)
+		httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
 	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet) {
