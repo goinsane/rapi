@@ -65,9 +65,10 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
-			panic(errors.New("pointer value is nil"))
+			indirectVal = reflect.New(val.Type().Elem()).Elem()
+		} else {
+			indirectVal = val.Elem()
 		}
-		indirectVal = val.Elem()
 	}
 
 	copiedVal := reflect.New(indirectVal.Type())
@@ -154,8 +155,10 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 
 // structToValues returns url.Values containing struct fields as values.
 func structToValues(source interface{}) (values url.Values, err error) {
+	values = make(url.Values)
+
 	if source == nil {
-		panic(errors.New("source is nil"))
+		return values, nil
 	}
 
 	val := reflect.ValueOf(source)
@@ -165,7 +168,7 @@ func structToValues(source interface{}) (values url.Values, err error) {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
-			panic(errors.New("source pointer is nil"))
+			return values, nil
 		}
 		indirectVal = val.Elem()
 	}
@@ -175,8 +178,6 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	}
 
 	indirectValType := indirectVal.Type()
-
-	values = make(url.Values)
 
 	for i, j := 0, indirectValType.NumField(); i < j; i++ {
 		field := indirectValType.Field(i)
