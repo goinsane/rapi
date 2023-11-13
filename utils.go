@@ -17,22 +17,27 @@ import (
 	"unicode"
 )
 
+// nopWriteCloser implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
 type nopWriteCloser struct {
 	io.Writer
 }
 
+// Close is the implementation of io.WriteCloser.
 func (nopWriteCloser) Close() error { return nil }
 
+// httpHeaderOption defines single http header option.
 type httpHeaderOption struct {
 	KeyVals []httpHeaderOptionKeyVal
 	Map     map[string]string
 }
 
+// httpHeaderOptionKeyVal is a key-value holder for httpHeaderOption.
 type httpHeaderOptionKeyVal struct {
 	Key string
 	Val string
 }
 
+// parseHTTPHeaderOptions parses single http header to return list of httpHeaderOption's.
 func parseHTTPHeaderOptions(directive string) (options []httpHeaderOption) {
 	options = []httpHeaderOption{}
 
