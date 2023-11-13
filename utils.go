@@ -248,17 +248,9 @@ func toJSONFieldName(s string) string {
 	return string(result)
 }
 
-// getContentEncoder returns the content encoder according to the given http.Request for the given http.ResponseWriter.
-func getContentEncoder(w http.ResponseWriter, r *http.Request) (result io.WriteCloser, err error) {
-	wc := nopWriteCloser{w}
-
-	defer func() {
-		if err == nil && result != wc {
-			w.Header().Del("Content-Length")
-		}
-	}()
-
-	for _, opt := range parseHTTPHeaderOptions(r.Header.Get("Accept-Encoding")) {
+// getContentEncoder returns the content encoder according to the given accept encoding for the given http.ResponseWriter.
+func getContentEncoder(w http.ResponseWriter, acceptEncoding string) (result io.WriteCloser, err error) {
+	for _, opt := range parseHTTPHeaderOptions(acceptEncoding) {
 		var q *float64
 		if s, ok := opt.Map["q"]; ok {
 			if f, e := strconv.ParseFloat(s, 64); e == nil {
@@ -300,7 +292,7 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (result io.WriteC
 		}
 	}
 
-	return wc, nil
+	return nopWriteCloser{w}, nil
 }
 
 // nopWriteCloser implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
