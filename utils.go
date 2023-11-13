@@ -156,6 +156,11 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	}
 
 	val := reflect.ValueOf(source)
+	typ := val.Type()
+
+	if typ.Kind() != reflect.Struct && !(typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Struct) {
+		panic(errors.New("source must be struct or struct pointer or nil"))
+	}
 
 	var indirectVal reflect.Value
 	if val.Kind() != reflect.Ptr {
@@ -166,11 +171,6 @@ func structToValues(source interface{}) (values url.Values, err error) {
 		}
 		indirectVal = val.Elem()
 	}
-
-	if indirectVal.Kind() != reflect.Struct {
-		panic(errors.New("source must be struct or struct pointer"))
-	}
-
 	indirectValType := indirectVal.Type()
 
 	for i, j := 0, indirectValType.NumField(); i < j; i++ {
