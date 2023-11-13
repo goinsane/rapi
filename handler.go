@@ -129,17 +129,15 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		for _, hdr := range header {
-			for k, v := range hdr {
-				for _, v2 := range v {
-					w.Header().Add(k, v2)
-				}
+		var nopwc io.WriteCloser = nopWriteCloser{w}
+		wc := nopwc
+		if h.options.AllowEncoding {
+			wc, err = getContentEncoder(w, r.Header.Get("Accept-Encoding"))
+			if err != nil {
+				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
+				httpError(r, w, "invalid accept encoding", http.StatusBadRequest)
+				return
 			}
-		}
-
-		if r.Method == http.MethodHead {
-			w.WriteHeader(code)
-			return
 		}
 
 		var data []byte
@@ -150,23 +148,24 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data = append(data, '\n')
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 
-		var wc io.WriteCloser = nopWriteCloser{w}
-		if h.options.AllowEncoding {
-			wc, err = getContentEncoder(w, r)
-			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
-				httpError(r, w, "invalid accept encoding", http.StatusBadRequest)
-				return
+		for _, hdr := range header {
+			for k, v := range hdr {
+				for _, v2 := range v {
+					w.Header().Add(k, v2)
+				}
 			}
 		}
-		defer func(wc io.WriteCloser) {
-			_ = wc.Close()
-		}(wc)
-
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if wc == nopwc {
+			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
+		} else {
+			w.Header().Del("Content-Length")
+		}
 		w.WriteHeader(code)
+		if r.Method == http.MethodHead {
+			return
+		}
 
 		respCtx, respCancel := context.WithCancel(context.Background())
 		defer respCancel()
