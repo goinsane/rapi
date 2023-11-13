@@ -255,11 +255,11 @@ func toJSONFieldName(s string) string {
 }
 
 // getContentEncoder returns the content encoder according to the given http.Request for the given http.ResponseWriter.
-func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteCloser, err error) {
+func getContentEncoder(w http.ResponseWriter, r *http.Request) (result io.WriteCloser, err error) {
 	w1 := nopWriteCloser{w}
 
 	defer func() {
-		if err == nil && w1 != wr {
+		if err == nil && result != w1 {
 			w.Header().Del("Content-Length")
 		}
 	}()
@@ -286,8 +286,8 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteClose
 				}
 			}
 			w.Header().Set("Content-Encoding", key)
-			wr, _ = gzip.NewWriterLevel(w, level)
-			return wr, nil
+			result, _ = gzip.NewWriterLevel(w, level)
+			return result, nil
 
 		case "deflate":
 			level := flate.DefaultCompression
@@ -300,8 +300,8 @@ func getContentEncoder(w http.ResponseWriter, r *http.Request) (wr io.WriteClose
 				}
 			}
 			w.Header().Set("Content-Encoding", key)
-			wr, _ = flate.NewWriter(w, level)
-			return wr, nil
+			result, _ = flate.NewWriter(w, level)
+			return result, nil
 
 		}
 	}
