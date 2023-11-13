@@ -91,21 +91,16 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 	}
 
 	val := reflect.ValueOf(target)
+	typ := val.Type()
 
-	var indirectVal reflect.Value
-	if val.Kind() != reflect.Ptr {
-		panic(errors.New("target must be struct pointer"))
-	} else {
-		if val.IsNil() {
-			panic(errors.New("target pointer is nil"))
-		}
-		indirectVal = val.Elem()
-	}
-
-	if indirectVal.Kind() != reflect.Struct {
+	if typ.Kind() != reflect.Ptr || typ.Elem().Kind() != reflect.Struct {
 		panic(errors.New("target must be struct pointer"))
 	}
+	if val.IsNil() {
+		panic(errors.New("target struct pointer is nil"))
+	}
 
+	indirectVal := val.Elem()
 	indirectValType := indirectVal.Type()
 
 	for i, j := 0, indirectValType.NumField(); i < j; i++ {
