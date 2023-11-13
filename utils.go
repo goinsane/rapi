@@ -65,10 +65,9 @@ func copyReflectValue(val reflect.Value) reflect.Value {
 		indirectVal = val
 	} else {
 		if val.IsNil() {
-			indirectVal = reflect.New(val.Type().Elem()).Elem()
-		} else {
-			indirectVal = val.Elem()
+			return reflect.New(val.Type().Elem())
 		}
+		indirectVal = val.Elem()
 	}
 
 	copiedVal := reflect.New(indirectVal.Type())
