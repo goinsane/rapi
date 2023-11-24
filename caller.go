@@ -101,7 +101,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 		return result, fmt.Errorf("unable to copy output: %w", err)
 	}
 
-	if len(data) > 0 || isErr {
+	if len(data) > 0 || (isErr && req.Method != http.MethodHead) {
 		err = json.Unmarshal(data, copiedOutVal.Interface())
 		if err != nil {
 			return result, fmt.Errorf("unable to unmarshal response body: %w", err)
