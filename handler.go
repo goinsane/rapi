@@ -32,7 +32,7 @@ func NewHandler(opts ...HandlerOption) (h *Handler) {
 	return h
 }
 
-// ServeHTTP is implementation of http.Handler.
+// ServeHTTP is the implementation of http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.serveMux.ServeHTTP(w, r)
 }
