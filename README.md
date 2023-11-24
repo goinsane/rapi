@@ -4,8 +4,8 @@
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=goinsane_rapi&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=goinsane_rapi)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=goinsane_rapi&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=goinsane_rapi)
 
-
-**rAPI** is a Go (Golang) package that simplifies building and consuming RESTful APIs. It provides an HTTP handler for creating APIs and a client for making API requests.
+**rAPI** is a Go (Golang) package that simplifies building and consuming RESTful APIs. It provides an HTTP handler for
+creating APIs and a client for making API requests.
 
 ## Installation
 
