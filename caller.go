@@ -11,7 +11,6 @@ import (
 	"path"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 // Caller is the HTTP requester to do JSON requests with the given method to the given endpoint.
@@ -90,7 +89,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 		}
 	}
 
-	isErr := req.Method != http.MethodHead && resp.StatusCode != http.StatusOK && c.options.ErrOut != nil
+	isErr := resp.StatusCode != http.StatusOK && c.options.ErrOut != nil
 
 	outVal := reflect.ValueOf(c.out)
 	if isErr {
@@ -158,7 +157,7 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, opts .
 			Path:     f.url.Path,
 			RawQuery: "",
 		},
-		method: strings.ToUpper(method),
+		method: method,
 		out:    out,
 	}
 	if endpoint != "" {
