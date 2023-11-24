@@ -19,7 +19,8 @@ func main() {
 			String: "abcdefgh",
 		})
 	if err != nil {
-		panic(err)
+		out := err.(*messages.ErrorReply)
+		panic(out)
 	}
 	out := resp.Out.(*messages.ReverseReply)
 	fmt.Println(out)
