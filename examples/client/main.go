@@ -7,15 +7,20 @@ import (
 	"net/url"
 
 	"github.com/goinsane/rapi"
+	"github.com/goinsane/rapi/examples/messages"
 )
 
 func main() {
 	u, _ := url.Parse("http://127.0.0.1:8080")
-	f := rapi.NewFactory(http.DefaultClient, u)
-	c := f.Caller("/echo", http.MethodGet, nil)
-	resp, err := c.Call(context.TODO(), nil)
+	factory := rapi.NewFactory(http.DefaultClient, u, rapi.WithErrOut(new(messages.ErrorReply)))
+
+	resp, err := factory.Caller("/reverse", http.MethodGet, &messages.ReverseReply{}).
+		Call(context.TODO(), &messages.ReverseRequest{
+			String: "abcdefgh",
+		})
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(resp.Out, resp.Header)
+	out := resp.Out.(*messages.ReverseReply)
+	fmt.Println(out)
 }
