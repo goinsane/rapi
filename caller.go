@@ -95,7 +95,11 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 			return result, &InvalidContentTypeError{err, contentType}
 		}
 		if mediaType == "text/plain" {
-			return result, &PlainTextError{errors.New(string(bytes.TrimSpace(data)))}
+			errMsg := bytes.TrimSpace(data)
+			if len(errMsg) > 1024 {
+				errMsg = errMsg[:1024]
+			}
+			return result, &PlainTextError{errors.New(string(errMsg))}
 		}
 	}
 
