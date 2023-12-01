@@ -26,26 +26,38 @@ func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 	http.Error(w, error, code)
 }
 
-// validateJSONContentType validates whether the content type is 'application/json; charset=utf-8'.
-func validateJSONContentType(contentType string) error {
+// validateContentType validates whether the content type is in the given valid media types.
+func validateContentType(contentType string, validMediaTypes ...string) (charset string, err error) {
 	mediatype, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return fmt.Errorf("media type parse error: %w", err)
+		return "", fmt.Errorf("media type parse error: %w", err)
 	}
-	switch mediatype {
-	case "application/json":
-	default:
-		return fmt.Errorf("invalid media type %q", mediatype)
-	}
-	if charset, ok := params["charset"]; ok {
-		charset = strings.ToLower(charset)
-		switch charset {
-		case "utf-8":
-		default:
-			return fmt.Errorf("invalid charset %q", charset)
+	mediatype = strings.ToLower(mediatype)
+
+	ok := false
+	for _, validMediaType := range validMediaTypes {
+		validMediaType = strings.ToLower(validMediaType)
+		if mediatype == validMediaType {
+			ok = true
+			break
 		}
 	}
-	return nil
+	if !ok {
+		return "", fmt.Errorf("invalid media type %q", mediatype)
+	}
+
+	charset, ok = params["charset"]
+	if ok {
+		charset = strings.ToLower(charset)
+		switch charset {
+		case "ascii":
+		case "utf-8":
+		default:
+			return charset, fmt.Errorf("invalid charset %q", charset)
+		}
+	}
+
+	return charset, nil
 }
 
 // copyReflectValue copies val and always returns pointer value if val is not pointer.

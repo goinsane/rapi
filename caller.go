@@ -84,7 +84,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	result.Data = data
 
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
-		err = validateJSONContentType(contentType)
+		_, err = validateContentType(contentType, "application/json")
 		if err != nil {
 			return result, &InvalidContentTypeError{err, contentType}
 		}
