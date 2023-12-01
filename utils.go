@@ -27,10 +27,10 @@ func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 }
 
 // validateContentType validates whether the content type is in the given valid media types.
-func validateContentType(contentType string, validMediaTypes ...string) (charset string, err error) {
+func validateContentType(contentType string, validMediaTypes ...string) (mediatype, charset string, err error) {
 	mediatype, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return "", fmt.Errorf("media type parse error: %w", err)
+		return "", "", fmt.Errorf("media type parse error: %w", err)
 	}
 	mediatype = strings.ToLower(mediatype)
 
@@ -43,7 +43,7 @@ func validateContentType(contentType string, validMediaTypes ...string) (charset
 		}
 	}
 	if !ok {
-		return "", fmt.Errorf("invalid media type %q", mediatype)
+		return mediatype, "", fmt.Errorf("invalid media type %q", mediatype)
 	}
 
 	charset, ok = params["charset"]
@@ -53,11 +53,11 @@ func validateContentType(contentType string, validMediaTypes ...string) (charset
 		case "ascii":
 		case "utf-8":
 		default:
-			return charset, fmt.Errorf("invalid charset %q", charset)
+			return mediatype, charset, fmt.Errorf("invalid charset %q", charset)
 		}
 	}
 
-	return charset, nil
+	return mediatype, charset, nil
 }
 
 // copyReflectValue copies val and always returns pointer value if val is not pointer.

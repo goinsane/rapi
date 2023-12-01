@@ -203,7 +203,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "" {
-		_, err = validateContentType(contentType, "application/json")
+		_, _, err = validateContentType(contentType, "application/json")
 		if err != nil {
 			h.options.PerformError(&InvalidContentTypeError{err, contentType}, r)
 			httpError(r, w, "invalid content type", http.StatusBadRequest)
