@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,9 +85,17 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	result.Data = data
 
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
-		_, _, err = validateContentType(contentType, "application/json")
+		validMediaTypes := []string{"application/json"}
+		if resp.StatusCode != http.StatusOK {
+			validMediaTypes = append(validMediaTypes, "text/plain")
+		}
+		var mediaType string
+		mediaType, _, err = validateContentType(contentType, validMediaTypes...)
 		if err != nil {
 			return result, &InvalidContentTypeError{err, contentType}
+		}
+		if mediaType == "text/plain" {
+			return result, &PlainTextError{errors.New(string(bytes.TrimSpace(data)))}
 		}
 	}
 

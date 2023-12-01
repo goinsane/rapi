@@ -26,3 +26,12 @@ func (e *InvalidContentTypeError) Error() string {
 func (e *InvalidContentTypeError) ContentType() string {
 	return e.contentType
 }
+
+// PlainTextError is the plain text error returned from http server.
+// It is returned from Caller.Call.
+type PlainTextError struct{ error }
+
+// Error is the implementation of error.
+func (e *PlainTextError) Error() string {
+	return fmt.Errorf("plain text error: %w", e.error).Error()
+}
