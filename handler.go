@@ -221,7 +221,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet) {
-		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
+		err = fromValues(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
 			httpError(r, w, "invalid query", http.StatusBadRequest)

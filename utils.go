@@ -90,6 +90,35 @@ func copyReflectValue(val reflect.Value) (copiedVal reflect.Value, err error) {
 	return copiedVal, nil
 }
 
+func fromValues(values url.Values, target interface{}) (err error) {
+	if target == nil {
+		panic(errors.New("target is nil"))
+	}
+
+	val := reflect.ValueOf(target)
+	typ := val.Type()
+
+	if typ.Kind() != reflect.Ptr {
+		panic(errors.New("target must be pointer"))
+	}
+
+	valuesMap := make(map[string]interface{}, len(values))
+	for key := range values {
+		valuesMap[key] = values.Get(key)
+	}
+
+	data, err := json.Marshal(valuesMap)
+	if err != nil {
+		return fmt.Errorf("json marshal error: %w", err)
+	}
+	err = json.Unmarshal(data, target)
+	if err != nil {
+		return fmt.Errorf("json unmarshal error: %w", err)
+	}
+
+	return nil
+}
+
 // valuesToStruct puts url.Values to the given struct.
 func valuesToStruct(values url.Values, target interface{}) (err error) {
 	if target == nil {
