@@ -185,7 +185,7 @@ func structToValues(source interface{}) (values url.Values, err error) {
 			continue
 		}
 
-		fieldName, _ := parseJSONField(field)
+		fieldName, fieldOmitempty := parseJSONField(field)
 		if fieldName == "" {
 			continue
 		}
@@ -194,8 +194,13 @@ func structToValues(source interface{}) (values url.Values, err error) {
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 
-		if kind == reflect.Ptr && fieldVal.IsNil() {
-			continue
+		if fieldOmitempty {
+			if fieldVal.IsZero() {
+				continue
+			}
+			if (kind == reflect.Array || kind == reflect.Slice || kind == reflect.Map) && fieldVal.Len() == 0 {
+				continue
+			}
 		}
 
 		switch ifc.(type) {
