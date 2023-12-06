@@ -4,7 +4,7 @@ import "fmt"
 
 // RequestError is the request error from http.Client.
 // It is returned from Caller.Call.
-type RequestError struct{ error }
+type RequestError struct{ error error }
 
 // Error is the implementation of error.
 func (e *RequestError) Error() string {
