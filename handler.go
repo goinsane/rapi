@@ -85,6 +85,16 @@ func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar {
 	method = strings.ToUpper(method)
 
+	switch method {
+	case http.MethodGet:
+	case http.MethodPost:
+	case http.MethodPut:
+	case http.MethodPatch:
+	case http.MethodDelete:
+	default:
+		panic(fmt.Errorf("method %q not allowed", method))
+	}
+
 	h.methodHandlersMu.Lock()
 	defer h.methodHandlersMu.Unlock()
 
@@ -94,6 +104,9 @@ func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts
 	}
 	mh = newMethodhandler(in, do, h.options, opts...)
 	h.methodHandlers[method] = mh
+	if method == http.MethodGet {
+		h.methodHandlers[http.MethodHead] = mh
+	}
 
 	return &struct{ Registrar }{h}
 }
