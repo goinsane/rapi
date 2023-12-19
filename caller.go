@@ -44,7 +44,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	var data []byte
 	if inVal := reflect.ValueOf(in); !options.ForceBody &&
 		(in == nil || inVal.Kind() == reflect.Struct || (inVal.Kind() == reflect.Ptr && inVal.Elem().Kind() == reflect.Struct)) &&
-		(c.method == http.MethodHead || c.method == http.MethodGet) {
+		(c.method == http.MethodHead || c.method == http.MethodGet || c.method == http.MethodDelete) {
 		var values url.Values
 		values, err = structToValues(in)
 		if err != nil {
