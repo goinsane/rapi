@@ -34,6 +34,26 @@ func NewHandler(opts ...HandlerOption) (h *Handler) {
 
 // ServeHTTP is the implementation of http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodHead:
+	case http.MethodGet:
+	case http.MethodPost:
+	case http.MethodPut:
+	case http.MethodPatch:
+	case http.MethodDelete:
+	case http.MethodOptions:
+		if h.options.OptionsHandler == nil {
+			h.options.PerformError(fmt.Errorf("method %s handler not defined", r.Method), r)
+			httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
+		h.options.OptionsHandler.ServeHTTP(w, r)
+		return
+	default:
+		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
+		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
 	h.serveMux.ServeHTTP(w, r)
 }
 
@@ -74,7 +94,7 @@ func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.methodHandlersMu.RUnlock()
 
 	if mh == nil {
-		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
+		h.options.PerformError(fmt.Errorf("method %s not registered", r.Method), r)
 		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
@@ -86,6 +106,7 @@ func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts
 	method = strings.ToUpper(method)
 
 	switch method {
+	case "":
 	case http.MethodGet:
 	case http.MethodPost:
 	case http.MethodPut:

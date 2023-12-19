@@ -47,6 +47,7 @@ type handlerOptions struct {
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
 	AllowEncoding      bool
+	OptionsHandler     http.Handler
 }
 
 func newHandlerOptions() (o *handlerOptions) {
@@ -66,6 +67,7 @@ func (o *handlerOptions) Clone() *handlerOptions {
 		ReadTimeout:        o.ReadTimeout,
 		WriteTimeout:       o.WriteTimeout,
 		AllowEncoding:      o.AllowEncoding,
+		OptionsHandler:     o.OptionsHandler,
 	}
 	copy(result.Middleware, o.Middleware)
 	return result
@@ -117,5 +119,12 @@ func WithWriteTimeout(writeTimeout time.Duration) HandlerOption {
 func WithAllowEncoding(allowEncoding bool) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.AllowEncoding = allowEncoding
+	})
+}
+
+// WithOptionsHandler returns a HandlerOption that handles requests with method OPTIONS.
+func WithOptionsHandler(optionsHandler http.Handler) HandlerOption {
+	return newFuncHandlerOption(func(options *handlerOptions) {
+		options.OptionsHandler = optionsHandler
 	})
 }
