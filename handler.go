@@ -142,8 +142,8 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var nopwc io.WriteCloser = nopWriteCloser{w}
-		wc := nopwc
+		var nopcw io.WriteCloser = nopCloserForWriter{w}
+		wc := nopcw
 		if h.options.AllowEncoding {
 			wc, err = getContentEncoder(w, r.Header.Get("Accept-Encoding"))
 			if err != nil {
@@ -170,7 +170,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if wc == nopwc {
+		if wc == nopcw {
 			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 		} else {
 			w.Header().Del("Content-Length")

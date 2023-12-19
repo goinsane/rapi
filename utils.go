@@ -318,16 +318,16 @@ func getContentEncoder(w http.ResponseWriter, acceptEncoding string) (result io.
 		}
 	}
 
-	return nopWriteCloser{w}, nil
+	return nopCloserForWriter{w}, nil
 }
 
-// nopWriteCloser implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
-type nopWriteCloser struct {
+// nopCloserForWriter implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
+type nopCloserForWriter struct {
 	io.Writer
 }
 
 // Close is the implementation of io.WriteCloser.
-func (nopWriteCloser) Close() error { return nil }
+func (nopCloserForWriter) Close() error { return nil }
 
 // httpHeaderOption defines single http header option.
 type httpHeaderOption struct {
