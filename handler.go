@@ -85,6 +85,16 @@ func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar {
 	method = strings.ToUpper(method)
 
+	switch method {
+	case http.MethodGet:
+	case http.MethodPost:
+	case http.MethodPut:
+	case http.MethodPatch:
+	case http.MethodDelete:
+	default:
+		panic(fmt.Errorf("method %q not allowed", method))
+	}
+
 	h.methodHandlersMu.Lock()
 	defer h.methodHandlersMu.Unlock()
 
@@ -94,6 +104,9 @@ func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts
 	}
 	mh = newMethodhandler(in, do, h.options, opts...)
 	h.methodHandlers[method] = mh
+	if method == http.MethodGet {
+		h.methodHandlers[http.MethodHead] = mh
+	}
 
 	return &struct{ Registrar }{h}
 }
@@ -129,8 +142,8 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var nopwc io.WriteCloser = nopWriteCloser{w}
-		wc := nopwc
+		var nopcw io.WriteCloser = nopCloserForWriter{w}
+		wc := nopcw
 		if h.options.AllowEncoding {
 			wc, err = getContentEncoder(w, r.Header.Get("Accept-Encoding"))
 			if err != nil {
@@ -157,7 +170,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if wc == nopwc {
+		if wc == nopcw {
 			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
 		} else {
 			w.Header().Del("Content-Length")
@@ -203,7 +216,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "" {
-		err = validateJSONContentType(contentType)
+		_, _, err = validateContentType(contentType, "application/json")
 		if err != nil {
 			h.options.PerformError(&InvalidContentTypeError{err, contentType}, r)
 			httpError(r, w, "invalid content type", http.StatusBadRequest)
@@ -220,7 +233,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
-		(r.Method == http.MethodHead || r.Method == http.MethodGet) {
+		(r.Method == http.MethodHead || r.Method == http.MethodGet || r.Method == http.MethodDelete) {
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)

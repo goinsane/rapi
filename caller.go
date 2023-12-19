@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,7 +44,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	var data []byte
 	if inVal := reflect.ValueOf(in); !options.ForceBody &&
 		(in == nil || inVal.Kind() == reflect.Struct || (inVal.Kind() == reflect.Ptr && inVal.Elem().Kind() == reflect.Struct)) &&
-		(c.method == http.MethodHead || c.method == http.MethodGet) {
+		(c.method == http.MethodHead || c.method == http.MethodGet || c.method == http.MethodDelete) {
 		var values url.Values
 		values, err = structToValues(in)
 		if err != nil {
@@ -84,9 +85,21 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	result.Data = data
 
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
-		err = validateJSONContentType(contentType)
+		validMediaTypes := []string{"application/json"}
+		if resp.StatusCode != http.StatusOK {
+			validMediaTypes = append(validMediaTypes, "text/plain")
+		}
+		var mediaType string
+		mediaType, _, err = validateContentType(contentType, validMediaTypes...)
 		if err != nil {
 			return result, &InvalidContentTypeError{err, contentType}
+		}
+		if mediaType == "text/plain" {
+			text := bytes.TrimSpace(data)
+			if len(text) > 1024 {
+				text = text[:1024]
+			}
+			return result, &PlainTextError{errors.New(string(text))}
 		}
 	}
 
@@ -101,7 +114,8 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 		return result, fmt.Errorf("unable to copy output: %w", err)
 	}
 
-	if len(data) > 0 || (isErr && req.Method != http.MethodHead) {
+	//if len(data) > 0 || (isErr && req.Method != http.MethodHead) {
+	if len(data) > 0 {
 		err = json.Unmarshal(data, copiedOutVal.Interface())
 		if err != nil {
 			return result, fmt.Errorf("unable to unmarshal response body: %w", err)
@@ -160,6 +174,9 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, opts .
 		},
 		method: strings.ToUpper(method),
 		out:    out,
+	}
+	if !strings.HasPrefix(result.url.Path, "/") {
+		result.url.Path = "/" + result.url.Path
 	}
 	if endpoint != "" {
 		result.url.Path = path.Join(result.url.Path, endpoint)

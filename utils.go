@@ -26,26 +26,38 @@ func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
 	http.Error(w, error, code)
 }
 
-// validateJSONContentType validates whether the content type is 'application/json; charset=utf-8'.
-func validateJSONContentType(contentType string) error {
-	mediatype, params, err := mime.ParseMediaType(contentType)
+// validateContentType validates whether the content type is in the given valid media types.
+func validateContentType(contentType string, validMediaTypes ...string) (mediaType, charset string, err error) {
+	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		return fmt.Errorf("media type parse error: %w", err)
+		return "", "", fmt.Errorf("media type parse error: %w", err)
 	}
-	switch mediatype {
-	case "application/json":
-	default:
-		return fmt.Errorf("invalid media type %q", mediatype)
-	}
-	if charset, ok := params["charset"]; ok {
-		charset = strings.ToLower(charset)
-		switch charset {
-		case "utf-8":
-		default:
-			return fmt.Errorf("invalid charset %q", charset)
+	mediaType = strings.ToLower(mediaType)
+
+	ok := false
+	for _, validMediaType := range validMediaTypes {
+		validMediaType = strings.ToLower(validMediaType)
+		if mediaType == validMediaType {
+			ok = true
+			break
 		}
 	}
-	return nil
+	if !ok {
+		return mediaType, "", fmt.Errorf("invalid media type %q", mediaType)
+	}
+
+	charset, ok = params["charset"]
+	if ok {
+		charset = strings.ToLower(charset)
+		switch charset {
+		case "ascii":
+		case "utf-8":
+		default:
+			return mediaType, charset, fmt.Errorf("invalid charset %q", charset)
+		}
+	}
+
+	return mediaType, charset, nil
 }
 
 // copyReflectValue copies val and always returns pointer value if val is not pointer.
@@ -103,7 +115,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 			continue
 		}
 
-		fieldName := getJSONFieldName(field)
+		fieldName, _ := parseJSONField(field)
 		if fieldName == "" {
 			continue
 		}
@@ -173,7 +185,7 @@ func structToValues(source interface{}) (values url.Values, err error) {
 			continue
 		}
 
-		fieldName := getJSONFieldName(field)
+		fieldName, fieldOmitempty := parseJSONField(field)
 		if fieldName == "" {
 			continue
 		}
@@ -182,8 +194,13 @@ func structToValues(source interface{}) (values url.Values, err error) {
 
 		ifc, kind := fieldVal.Interface(), fieldVal.Kind()
 
-		if kind == reflect.Ptr && fieldVal.IsNil() {
-			continue
+		if fieldOmitempty {
+			if fieldVal.IsZero() {
+				continue
+			}
+			if (kind == reflect.Array || kind == reflect.Slice || kind == reflect.Map) && fieldVal.Len() == 0 {
+				continue
+			}
 		}
 
 		switch ifc.(type) {
@@ -216,20 +233,29 @@ func structToValues(source interface{}) (values url.Values, err error) {
 	return values, nil
 }
 
-// getJSONFieldName retrieves the JSON field name from the structure field.
-func getJSONFieldName(sf reflect.StructField) string {
-	fieldName := toJSONFieldName(sf.Name)
+// parseJSONField parses the JSON field from the structure field.
+func parseJSONField(sf reflect.StructField) (name string, omitempty bool) {
+	name = toJSONFieldName(sf.Name)
 	if v, ok := sf.Tag.Lookup("json"); ok {
-		s := strings.SplitN(v, ",", 2)[0]
-		if s == "-" {
-			return ""
+		sl := strings.Split(v, ",")
+		s := sl[0]
+		if s != "-" {
+			s = toJSONFieldName(s)
+			if s != "" {
+				name = s
+			}
+		} else {
+			name = ""
 		}
-		s = toJSONFieldName(s)
-		if s != "" {
-			fieldName = s
+		for _, s = range sl[1:] {
+			switch s {
+			case "omitempty":
+				omitempty = true
+			case "string":
+			}
 		}
 	}
-	return fieldName
+	return
 }
 
 // toJSONFieldName converts the given string to the JSON field name.
@@ -292,16 +318,16 @@ func getContentEncoder(w http.ResponseWriter, acceptEncoding string) (result io.
 		}
 	}
 
-	return nopWriteCloser{w}, nil
+	return nopCloserForWriter{w}, nil
 }
 
-// nopWriteCloser implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
-type nopWriteCloser struct {
+// nopCloserForWriter implements io.WriteCloser with a no-op Close method wrapping the provided io.Writer.
+type nopCloserForWriter struct {
 	io.Writer
 }
 
 // Close is the implementation of io.WriteCloser.
-func (nopWriteCloser) Close() error { return nil }
+func (nopCloserForWriter) Close() error { return nil }
 
 // httpHeaderOption defines single http header option.
 type httpHeaderOption struct {

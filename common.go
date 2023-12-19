@@ -22,7 +22,7 @@ type Response struct {
 type DoFunc func(req *Request, send SendFunc)
 
 // MiddlewareFunc is a function type to process requests as middleware from Handler.
-type MiddlewareFunc func(req *Request, send SendFunc, do DoFunc)
+type MiddlewareFunc func(req *Request, send SendFunc, next DoFunc)
 
 // SendFunc is a function type to send response in DoFunc or MiddlewareFunc.
 type SendFunc func(out interface{}, code int, header ...http.Header)
