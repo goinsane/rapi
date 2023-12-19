@@ -175,8 +175,8 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, opts .
 		method: strings.ToUpper(method),
 		out:    out,
 	}
-	if result.url.Path == "" {
-		result.url.Path = "/"
+	if !strings.HasPrefix(result.url.Path, "/") {
+		result.url.Path = "/" + result.url.Path
 	}
 	if endpoint != "" {
 		result.url.Path = path.Join(result.url.Path, endpoint)
