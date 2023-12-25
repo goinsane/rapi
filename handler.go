@@ -329,8 +329,8 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		},
 	}
-	for i := len(h.options.Middleware) - 1; i >= 0; i-- {
-		m := h.options.Middleware[i]
+	for i := len(h.options.Middlewares) - 1; i >= 0; i-- {
+		m := h.options.Middlewares[i]
 		l := len(do)
 		do = append(do, func(req *Request, send SendFunc) {
 			if sent == 0 && m != nil {
