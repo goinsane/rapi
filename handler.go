@@ -296,12 +296,12 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}()
 		}
 		err = json.NewDecoder(rd).Decode(copiedInVal.Interface())
+		close(completed)
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to decode request body: %w", err), r)
 			http.Error(w, "unable to decode request body", http.StatusBadRequest)
 			return
 		}
-		close(completed)
 	}
 
 	var in interface{}
