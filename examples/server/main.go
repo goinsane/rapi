@@ -20,13 +20,10 @@ func main() {
 		rapi.WithReadTimeout(60*time.Second),
 		rapi.WithWriteTimeout(60*time.Second),
 		rapi.WithAllowEncoding(true),
+		rapi.WithNotFoundHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		})),
 	)
-
-	handler.Handle("/").
-		Register("", nil, handleUnimplemented)
-
-	handler.Handle("/echo", rapi.WithMiddleware(authMiddleware)).
-		Register("", nil, handleEcho)
 
 	handler.Handle("/ping").
 		Register(http.MethodGet, new(messages.PingRequest), handlePing)
@@ -58,18 +55,6 @@ func authMiddleware(req *rapi.Request, send rapi.SendFunc, do rapi.DoFunc) {
 		return
 	}
 	do(req, send)
-}
-
-func handleUnimplemented(req *rapi.Request, send rapi.SendFunc) {
-	send(&messages.ErrorReply{
-		ErrorMsg: http.StatusText(http.StatusNotImplemented),
-	}, http.StatusNotImplemented)
-}
-
-func handleEcho(req *rapi.Request, send rapi.SendFunc) {
-	hdr := http.Header{}
-	hdr.Set("X-Request-Method", req.Method)
-	send(req.In, http.StatusOK, hdr)
 }
 
 func handlePing(req *rapi.Request, send rapi.SendFunc) {
