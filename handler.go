@@ -55,7 +55,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
-	h.serveMux.ServeHTTP(w, r)
+
+	if r.RequestURI == "*" {
+		if r.ProtoAtLeast(1, 1) {
+			w.Header().Set("Connection", "close")
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	handler, pattern := h.serveMux.Handler(r)
+	if h.options.NotFoundHandler != nil && pattern == "" {
+		h.options.NotFoundHandler.ServeHTTP(w, r)
+		return
+	}
+
+	handler.ServeHTTP(w, r)
 }
 
 // Handle creates a Registrar to register methods for the given pattern.

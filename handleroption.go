@@ -48,6 +48,7 @@ type handlerOptions struct {
 	WriteTimeout       time.Duration
 	AllowEncoding      bool
 	OptionsHandler     http.Handler
+	NotFoundHandler    http.Handler
 }
 
 func newHandlerOptions() (o *handlerOptions) {
@@ -68,6 +69,7 @@ func (o *handlerOptions) Clone() *handlerOptions {
 		WriteTimeout:       o.WriteTimeout,
 		AllowEncoding:      o.AllowEncoding,
 		OptionsHandler:     o.OptionsHandler,
+		NotFoundHandler:    o.NotFoundHandler,
 	}
 	copy(result.Middleware, o.Middleware)
 	return result
@@ -126,5 +128,12 @@ func WithAllowEncoding(allowEncoding bool) HandlerOption {
 func WithOptionsHandler(optionsHandler http.Handler) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.OptionsHandler = optionsHandler
+	})
+}
+
+// WithNotFoundHandler returns a HandlerOption that handles requests when the pattern isn't match.
+func WithNotFoundHandler(notFoundHandler http.Handler) HandlerOption {
+	return newFuncHandlerOption(func(options *handlerOptions) {
+		options.NotFoundHandler = notFoundHandler
 	})
 }
