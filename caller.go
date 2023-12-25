@@ -160,6 +160,15 @@ func NewFactory(client *http.Client, u *url.URL, opts ...CallOption) (f *Factory
 
 // Caller creates a new Caller with the given endpoint and method.
 func (f *Factory) Caller(endpoint string, method string, out interface{}, opts ...CallOption) *Caller {
+	method = strings.ToUpper(method)
+
+	switch method {
+	case http.MethodHead, http.MethodGet, http.MethodDelete:
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+	default:
+		panic(fmt.Errorf("method %q not allowed", method))
+	}
+
 	result := &Caller{
 		options: f.options.Clone(),
 		client:  f.client,
@@ -169,15 +178,17 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, opts .
 			Path:     f.url.Path,
 			RawQuery: "",
 		},
-		method: strings.ToUpper(method),
+		method: method,
 		out:    out,
 	}
+
 	if !strings.HasPrefix(result.url.Path, "/") {
 		result.url.Path = "/" + result.url.Path
 	}
 	if endpoint != "" {
 		result.url.Path = path.Join(result.url.Path, endpoint)
 	}
+
 	newJoinCallOption(opts...).apply(result.options)
 	return result
 }
