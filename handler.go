@@ -104,6 +104,9 @@ func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *patte
 func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.methodHandlersMu.RLock()
 	mh := h.methodHandlers[r.Method]
+	if mh == nil {
+		mh = h.methodHandlers[""]
+	}
 	h.methodHandlersMu.RUnlock()
 
 	if mh == nil {
@@ -124,7 +127,7 @@ func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts
 	method = strings.ToUpper(method)
 
 	switch method {
-	case http.MethodGet, http.MethodDelete:
+	case "", http.MethodGet, http.MethodDelete:
 		if inVal.Elem().Kind() != reflect.Struct {
 			panic(errors.New("input must be struct or struct pointer"))
 		}
