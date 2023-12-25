@@ -82,6 +82,7 @@ func copyReflectValue(val reflect.Value) (copiedVal reflect.Value, err error) {
 }
 
 // valuesToStruct puts url.Values to the given struct.
+// target must be non-nil struct pointer otherwise it panics.
 func valuesToStruct(values url.Values, target interface{}) (err error) {
 	if target == nil {
 		panic(errors.New("target is nil"))
@@ -145,6 +146,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 }
 
 // structToValues returns url.Values containing struct fields as values.
+// source must be struct or struct pointer or nil otherwise it panics.
 func structToValues(source interface{}) (values url.Values, err error) {
 	values = make(url.Values)
 
