@@ -54,7 +54,7 @@ func validateContentType(contentType string, validMediaTypes ...string) (mediaTy
 // copyReflectValue copies val and always returns pointer value if val is not pointer.
 func copyReflectValue(val reflect.Value) (copiedVal reflect.Value, err error) {
 	if !val.IsValid() {
-		return reflect.ValueOf(new(interface{})), nil
+		return reflect.Value{}, errors.New("invalid value")
 	}
 
 	var indirectVal reflect.Value

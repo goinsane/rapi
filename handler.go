@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -88,9 +89,6 @@ func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *patte
 func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.methodHandlersMu.RLock()
 	mh := h.methodHandlers[r.Method]
-	if mh == nil {
-		mh = h.methodHandlers[""]
-	}
 	h.methodHandlersMu.RUnlock()
 
 	if mh == nil {
@@ -103,15 +101,19 @@ func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar {
+	inVal, err := copyReflectValue(reflect.ValueOf(in))
+	if err != nil {
+		panic(fmt.Errorf("unable to copy input: %w", err))
+	}
+
 	method = strings.ToUpper(method)
 
 	switch method {
-	case "":
-	case http.MethodGet:
-	case http.MethodPost:
-	case http.MethodPut:
-	case http.MethodPatch:
-	case http.MethodDelete:
+	case http.MethodGet, http.MethodDelete:
+		if inVal.Elem().Kind() != reflect.Struct {
+			panic(errors.New("input must be struct or struct pointer"))
+		}
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
 	default:
 		panic(fmt.Errorf("method %q not allowed", method))
 	}
@@ -160,7 +162,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
-			return
+			panic(errors.New("already sent"))
 		}
 
 		var nopcw io.WriteCloser = nopCloserForWriter{w}
@@ -248,13 +250,14 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	inVal := reflect.ValueOf(h.in)
 	copiedInVal, err := copyReflectValue(inVal)
 	if err != nil {
-		h.options.PerformError(fmt.Errorf("unable to copy input: %w", err), r)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		panic(fmt.Errorf("unable to copy input: %w", err))
 	}
 
-	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
+	if contentType == "" &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet || r.Method == http.MethodDelete) {
+		if copiedInVal.Elem().Kind() != reflect.Struct {
+			panic(errors.New("input must be struct or struct pointer"))
+		}
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
