@@ -43,8 +43,11 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 
 	var data []byte
 	if inVal := reflect.ValueOf(in); !options.ForceBody &&
-		(in == nil || inVal.Kind() == reflect.Struct || (inVal.Kind() == reflect.Ptr && inVal.Elem().Kind() == reflect.Struct)) &&
 		(c.method == http.MethodHead || c.method == http.MethodGet || c.method == http.MethodDelete) {
+		if !(in == nil ||
+			inVal.Kind() == reflect.Struct || (inVal.Kind() == reflect.Ptr && inVal.Elem().Kind() == reflect.Struct)) {
+			return nil, errors.New("input must be nil or struct or struct pointer")
+		}
 		var values url.Values
 		values, err = structToValues(in)
 		if err != nil {
@@ -54,7 +57,7 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	} else {
 		data, err = json.Marshal(in)
 		if err != nil {
-			return nil, fmt.Errorf("unable to marshal input: %w", err)
+			return nil, fmt.Errorf("unable to encode input: %w", err)
 		}
 		data = append(data, '\n')
 		req.Header.Set("Content-Type", "application/json; charset=utf-8")
@@ -78,11 +81,6 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 	if options.MaxResponseBodySize > 0 {
 		rd = io.LimitReader(resp.Body, options.MaxResponseBodySize)
 	}
-	data, err = io.ReadAll(rd)
-	if err != nil {
-		return result, fmt.Errorf("unable to read response body: %w", err)
-	}
-	result.Data = data
 
 	if contentType := resp.Header.Get("Content-Type"); contentType != "" {
 		validMediaTypes := []string{"application/json"}
@@ -95,11 +93,11 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 			return result, &InvalidContentTypeError{err, contentType}
 		}
 		if mediaType == "text/plain" {
-			text := bytes.TrimSpace(data)
-			if len(text) > 1024 {
-				text = text[:1024]
+			data, err = io.ReadAll(io.LimitReader(rd, 1024))
+			if err != nil {
+				return result, fmt.Errorf("unable to read response body: %w", err)
 			}
-			return result, &PlainTextError{errors.New(string(text))}
+			return result, &PlainTextError{errors.New(string(data))}
 		}
 	}
 
@@ -114,11 +112,10 @@ func (c *Caller) Call(ctx context.Context, in interface{}, opts ...CallOption) (
 		return result, fmt.Errorf("unable to copy output: %w", err)
 	}
 
-	//if len(data) > 0 || (isErr && req.Method != http.MethodHead) {
-	if len(data) > 0 {
-		err = json.Unmarshal(data, copiedOutVal.Interface())
+	if req.Method != http.MethodHead {
+		err = json.NewDecoder(rd).Decode(copiedOutVal.Interface())
 		if err != nil {
-			return result, fmt.Errorf("unable to unmarshal response body: %w", err)
+			return result, fmt.Errorf("unable to decode response body: %w", err)
 		}
 	}
 
@@ -163,6 +160,15 @@ func NewFactory(client *http.Client, u *url.URL, opts ...CallOption) (f *Factory
 
 // Caller creates a new Caller with the given endpoint and method.
 func (f *Factory) Caller(endpoint string, method string, out interface{}, opts ...CallOption) *Caller {
+	method = strings.ToUpper(method)
+
+	switch method {
+	case http.MethodHead, http.MethodGet, http.MethodDelete:
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+	default:
+		panic(fmt.Errorf("method %q not allowed", method))
+	}
+
 	result := &Caller{
 		options: f.options.Clone(),
 		client:  f.client,
@@ -172,15 +178,17 @@ func (f *Factory) Caller(endpoint string, method string, out interface{}, opts .
 			Path:     f.url.Path,
 			RawQuery: "",
 		},
-		method: strings.ToUpper(method),
+		method: method,
 		out:    out,
 	}
+
 	if !strings.HasPrefix(result.url.Path, "/") {
 		result.url.Path = "/" + result.url.Path
 	}
 	if endpoint != "" {
 		result.url.Path = path.Join(result.url.Path, endpoint)
 	}
+
 	newJoinCallOption(opts...).apply(result.options)
 	return result
 }

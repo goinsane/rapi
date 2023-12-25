@@ -17,15 +17,6 @@ import (
 	"unicode"
 )
 
-// httpError writes the http error to the http.ResponseWriter according to the request method.
-func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
-	if r.Method == http.MethodHead {
-		w.WriteHeader(code)
-		return
-	}
-	http.Error(w, error, code)
-}
-
 // validateContentType validates whether the content type is in the given valid media types.
 func validateContentType(contentType string, validMediaTypes ...string) (mediaType, charset string, err error) {
 	mediaType, params, err := mime.ParseMediaType(contentType)
@@ -63,7 +54,7 @@ func validateContentType(contentType string, validMediaTypes ...string) (mediaTy
 // copyReflectValue copies val and always returns pointer value if val is not pointer.
 func copyReflectValue(val reflect.Value) (copiedVal reflect.Value, err error) {
 	if !val.IsValid() {
-		return reflect.ValueOf(new(interface{})), nil
+		return reflect.Value{}, errors.New("invalid value")
 	}
 
 	var indirectVal reflect.Value
@@ -91,6 +82,7 @@ func copyReflectValue(val reflect.Value) (copiedVal reflect.Value, err error) {
 }
 
 // valuesToStruct puts url.Values to the given struct.
+// target must be non-nil struct pointer otherwise it panics.
 func valuesToStruct(values url.Values, target interface{}) (err error) {
 	if target == nil {
 		panic(errors.New("target is nil"))
@@ -154,6 +146,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 }
 
 // structToValues returns url.Values containing struct fields as values.
+// source must be nil or struct or struct pointer otherwise it panics.
 func structToValues(source interface{}) (values url.Values, err error) {
 	values = make(url.Values)
 

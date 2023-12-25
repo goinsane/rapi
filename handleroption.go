@@ -42,12 +42,13 @@ func (o *joinHandlerOption) apply(options *handlerOptions) {
 
 type handlerOptions struct {
 	OnError            func(err error, req *http.Request)
-	Middleware         []MiddlewareFunc
+	Middlewares        []MiddlewareFunc
 	MaxRequestBodySize int64
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
 	AllowEncoding      bool
 	OptionsHandler     http.Handler
+	NotFoundHandler    http.Handler
 }
 
 func newHandlerOptions() (o *handlerOptions) {
@@ -62,14 +63,15 @@ func (o *handlerOptions) Clone() *handlerOptions {
 	}
 	result := &handlerOptions{
 		OnError:            o.OnError,
-		Middleware:         make([]MiddlewareFunc, len(o.Middleware)),
+		Middlewares:        make([]MiddlewareFunc, len(o.Middlewares)),
 		MaxRequestBodySize: o.MaxRequestBodySize,
 		ReadTimeout:        o.ReadTimeout,
 		WriteTimeout:       o.WriteTimeout,
 		AllowEncoding:      o.AllowEncoding,
 		OptionsHandler:     o.OptionsHandler,
+		NotFoundHandler:    o.NotFoundHandler,
 	}
-	copy(result.Middleware, o.Middleware)
+	copy(result.Middlewares, o.Middlewares)
 	return result
 }
 
@@ -87,9 +89,9 @@ func WithOnError(onError func(error, *http.Request)) HandlerOption {
 }
 
 // WithMiddleware returns a HandlerOption that adds middlewares.
-func WithMiddleware(middleware ...MiddlewareFunc) HandlerOption {
+func WithMiddleware(middlewares ...MiddlewareFunc) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
-		options.Middleware = append(options.Middleware, middleware...)
+		options.Middlewares = append(options.Middlewares, middlewares...)
 	})
 }
 
@@ -126,5 +128,12 @@ func WithAllowEncoding(allowEncoding bool) HandlerOption {
 func WithOptionsHandler(optionsHandler http.Handler) HandlerOption {
 	return newFuncHandlerOption(func(options *handlerOptions) {
 		options.OptionsHandler = optionsHandler
+	})
+}
+
+// WithNotFoundHandler returns a HandlerOption that handles requests when the pattern isn't match.
+func WithNotFoundHandler(notFoundHandler http.Handler) HandlerOption {
+	return newFuncHandlerOption(func(options *handlerOptions) {
+		options.NotFoundHandler = notFoundHandler
 	})
 }

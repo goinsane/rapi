@@ -67,9 +67,9 @@ func (o *callOptions) Clone() *callOptions {
 }
 
 // WithRequestHeader returns a CallOption that sets the given http headers to the request headers.
-func WithRequestHeader(header ...http.Header) CallOption {
+func WithRequestHeader(headers ...http.Header) CallOption {
 	return newFuncCallOption(func(options *callOptions) {
-		for _, hdr := range header {
+		for _, hdr := range headers {
 			for k, v := range hdr.Clone() {
 				k = textproto.CanonicalMIMEHeaderKey(k)
 				options.RequestHeader[k] = v
@@ -79,9 +79,9 @@ func WithRequestHeader(header ...http.Header) CallOption {
 }
 
 // WithAdditionalRequestHeader returns a CallOption that adds the given http headers to the request headers.
-func WithAdditionalRequestHeader(header ...http.Header) CallOption {
+func WithAdditionalRequestHeader(headers ...http.Header) CallOption {
 	return newFuncCallOption(func(options *callOptions) {
-		for _, hdr := range header {
+		for _, hdr := range headers {
 			for k, v := range hdr {
 				for _, v2 := range v {
 					options.RequestHeader.Add(k, v2)

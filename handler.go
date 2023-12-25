@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,17 +45,32 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodOptions:
 		if h.options.OptionsHandler == nil {
 			h.options.PerformError(fmt.Errorf("method %s handler not defined", r.Method), r)
-			httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 		h.options.OptionsHandler.ServeHTTP(w, r)
 		return
 	default:
 		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
-		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
-	h.serveMux.ServeHTTP(w, r)
+
+	if r.RequestURI == "*" {
+		if r.ProtoAtLeast(1, 1) {
+			w.Header().Set("Connection", "close")
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	handler, pattern := h.serveMux.Handler(r)
+	if h.options.NotFoundHandler != nil && pattern == "" {
+		h.options.NotFoundHandler.ServeHTTP(w, r)
+		return
+	}
+
+	handler.ServeHTTP(w, r)
 }
 
 // Handle creates a Registrar to register methods for the given pattern.
@@ -88,14 +104,11 @@ func newPatternHandler(options *handlerOptions, opts ...HandlerOption) (h *patte
 func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.methodHandlersMu.RLock()
 	mh := h.methodHandlers[r.Method]
-	if mh == nil {
-		mh = h.methodHandlers[""]
-	}
 	h.methodHandlersMu.RUnlock()
 
 	if mh == nil {
 		h.options.PerformError(fmt.Errorf("method %s not registered", r.Method), r)
-		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -103,15 +116,19 @@ func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts ...HandlerOption) Registrar {
+	inVal, err := copyReflectValue(reflect.ValueOf(in))
+	if err != nil {
+		panic(fmt.Errorf("unable to copy input: %w", err))
+	}
+
 	method = strings.ToUpper(method)
 
 	switch method {
-	case "":
-	case http.MethodGet:
-	case http.MethodPost:
-	case http.MethodPut:
-	case http.MethodPatch:
-	case http.MethodDelete:
+	case http.MethodGet, http.MethodDelete:
+		if inVal.Elem().Kind() != reflect.Struct {
+			panic(errors.New("input must be struct or struct pointer"))
+		}
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
 	default:
 		panic(fmt.Errorf("method %q not allowed", method))
 	}
@@ -156,11 +173,11 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var sent int32
-	send := func(out interface{}, code int, header ...http.Header) {
+	send := func(out interface{}, code int, headers ...http.Header) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
-			return
+			panic(errors.New("already sent"))
 		}
 
 		var nopcw io.WriteCloser = nopCloserForWriter{w}
@@ -169,7 +186,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			wc, err = getContentEncoder(w, r.Header.Get("Accept-Encoding"))
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
-				httpError(r, w, "invalid accept encoding", http.StatusBadRequest)
+				http.Error(w, "invalid accept encoding", http.StatusBadRequest)
 				return
 			}
 		}
@@ -177,13 +194,11 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var data []byte
 		data, err = json.Marshal(out)
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), r)
-			httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			panic(fmt.Errorf("unable to encode output: %w", err))
 		}
 		data = append(data, '\n')
 
-		for _, hdr := range header {
+		for _, hdr := range headers {
 			for k, v := range hdr {
 				for _, v2 := range v {
 					w.Header().Add(k, v2)
@@ -240,7 +255,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _, err = validateContentType(contentType, "application/json")
 		if err != nil {
 			h.options.PerformError(&InvalidContentTypeError{err, contentType}, r)
-			httpError(r, w, "invalid content type", http.StatusBadRequest)
+			http.Error(w, "invalid content type", http.StatusBadRequest)
 			return
 		}
 	}
@@ -248,17 +263,18 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	inVal := reflect.ValueOf(h.in)
 	copiedInVal, err := copyReflectValue(inVal)
 	if err != nil {
-		h.options.PerformError(fmt.Errorf("unable to copy input: %w", err), r)
-		httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		panic(fmt.Errorf("unable to copy input: %w", err))
 	}
 
-	if contentType == "" && copiedInVal.Elem().Kind() == reflect.Struct &&
+	if contentType == "" &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet || r.Method == http.MethodDelete) {
+		if copiedInVal.Elem().Kind() != reflect.Struct {
+			panic(errors.New("input must be struct or struct pointer"))
+		}
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
-			httpError(r, w, "invalid query", http.StatusBadRequest)
+			http.Error(w, "invalid query", http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -276,23 +292,13 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}()
 		}
-		var data []byte
-		data, err = io.ReadAll(rd)
-		close(completed)
+		err = json.NewDecoder(rd).Decode(copiedInVal.Interface())
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), r)
-			httpError(r, w, "unable to read request body", http.StatusBadRequest)
+			h.options.PerformError(fmt.Errorf("unable to decode request body: %w", err), r)
+			http.Error(w, "unable to decode request body", http.StatusBadRequest)
 			return
 		}
-		req.Data = data
-		if len(data) > 0 {
-			err = json.Unmarshal(data, copiedInVal.Interface())
-			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
-				httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
-				return
-			}
-		}
+		close(completed)
 	}
 
 	var in interface{}
@@ -311,8 +317,8 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		},
 	}
-	for i := len(h.options.Middleware) - 1; i >= 0; i-- {
-		m := h.options.Middleware[i]
+	for i := len(h.options.Middlewares) - 1; i >= 0; i-- {
+		m := h.options.Middlewares[i]
 		l := len(do)
 		do = append(do, func(req *Request, send SendFunc) {
 			if sent == 0 && m != nil {
