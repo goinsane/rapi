@@ -6,8 +6,7 @@ import "net/http"
 // It is used in DoFunc and MiddlewareFunc.
 type Request struct {
 	*http.Request
-	Data []byte
-	In   interface{}
+	In interface{}
 }
 
 // Response encapsulates http.Response and gives data and output from response.
@@ -25,4 +24,4 @@ type DoFunc func(req *Request, send SendFunc)
 type MiddlewareFunc func(req *Request, send SendFunc, next DoFunc)
 
 // SendFunc is a function type to send response in DoFunc or MiddlewareFunc.
-type SendFunc func(out interface{}, code int, header ...http.Header)
+type SendFunc func(out interface{}, code int, headers ...http.Header)
