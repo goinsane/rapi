@@ -17,15 +17,6 @@ import (
 	"unicode"
 )
 
-// httpError writes the http error to the http.ResponseWriter according to the request method.
-func httpError(r *http.Request, w http.ResponseWriter, error string, code int) {
-	if r.Method == http.MethodHead {
-		w.WriteHeader(code)
-		return
-	}
-	http.Error(w, error, code)
-}
-
 // validateContentType validates whether the content type is in the given valid media types.
 func validateContentType(contentType string, validMediaTypes ...string) (mediaType, charset string, err error) {
 	mediaType, params, err := mime.ParseMediaType(contentType)

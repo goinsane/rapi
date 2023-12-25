@@ -44,14 +44,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodOptions:
 		if h.options.OptionsHandler == nil {
 			h.options.PerformError(fmt.Errorf("method %s handler not defined", r.Method), r)
-			httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 		h.options.OptionsHandler.ServeHTTP(w, r)
 		return
 	default:
 		h.options.PerformError(fmt.Errorf("method %s not allowed", r.Method), r)
-		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 	h.serveMux.ServeHTTP(w, r)
@@ -95,7 +95,7 @@ func (h *patternHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if mh == nil {
 		h.options.PerformError(fmt.Errorf("method %s not registered", r.Method), r)
-		httpError(r, w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -169,7 +169,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			wc, err = getContentEncoder(w, r.Header.Get("Accept-Encoding"))
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to get content encoder: %w", err), r)
-				httpError(r, w, "invalid accept encoding", http.StatusBadRequest)
+				http.Error(w, "invalid accept encoding", http.StatusBadRequest)
 				return
 			}
 		}
@@ -178,7 +178,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		data, err = json.Marshal(out)
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), r)
-			httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 		data = append(data, '\n')
@@ -240,7 +240,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _, err = validateContentType(contentType, "application/json")
 		if err != nil {
 			h.options.PerformError(&InvalidContentTypeError{err, contentType}, r)
-			httpError(r, w, "invalid content type", http.StatusBadRequest)
+			http.Error(w, "invalid content type", http.StatusBadRequest)
 			return
 		}
 	}
@@ -249,7 +249,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	copiedInVal, err := copyReflectValue(inVal)
 	if err != nil {
 		h.options.PerformError(fmt.Errorf("unable to copy input: %w", err), r)
-		httpError(r, w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -258,7 +258,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("invalid query: %w", err), r)
-			httpError(r, w, "invalid query", http.StatusBadRequest)
+			http.Error(w, "invalid query", http.StatusBadRequest)
 			return
 		}
 	} else {
@@ -281,7 +281,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		close(completed)
 		if err != nil {
 			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), r)
-			httpError(r, w, "unable to read request body", http.StatusBadRequest)
+			http.Error(w, "unable to read request body", http.StatusBadRequest)
 			return
 		}
 		req.Data = data
@@ -289,7 +289,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			err = json.Unmarshal(data, copiedInVal.Interface())
 			if err != nil {
 				h.options.PerformError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
-				httpError(r, w, "unable to unmarshal request body", http.StatusBadRequest)
+				http.Error(w, "unable to unmarshal request body", http.StatusBadRequest)
 				return
 			}
 		}
