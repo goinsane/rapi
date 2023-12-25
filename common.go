@@ -13,8 +13,7 @@ type Request struct {
 // It is returned from Caller.Call.
 type Response struct {
 	*http.Response
-	Data []byte
-	Out  interface{}
+	Out interface{}
 }
 
 // DoFunc is a function type to process requests from Handler.
