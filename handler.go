@@ -173,7 +173,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var sent int32
-	send := func(out interface{}, code int, header ...http.Header) {
+	send := func(out interface{}, code int, headers ...http.Header) {
 		var err error
 
 		if !atomic.CompareAndSwapInt32(&sent, 0, 1) {
@@ -194,13 +194,11 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var data []byte
 		data, err = json.Marshal(out)
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to marshal output: %w", err), r)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
+			panic(fmt.Errorf("unable to encode output: %w", err))
 		}
 		data = append(data, '\n')
 
-		for _, hdr := range header {
+		for _, hdr := range headers {
 			for k, v := range hdr {
 				for _, v2 := range v {
 					w.Header().Add(k, v2)
@@ -294,23 +292,13 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}()
 		}
-		var data []byte
-		data, err = io.ReadAll(rd)
-		close(completed)
+		err = json.NewDecoder(rd).Decode(copiedInVal.Interface())
 		if err != nil {
-			h.options.PerformError(fmt.Errorf("unable to read request body: %w", err), r)
-			http.Error(w, "unable to read request body", http.StatusBadRequest)
+			h.options.PerformError(fmt.Errorf("unable to decode request body: %w", err), r)
+			http.Error(w, "unable to decode request body", http.StatusBadRequest)
 			return
 		}
-		req.Data = data
-		if len(data) > 0 {
-			err = json.Unmarshal(data, copiedInVal.Interface())
-			if err != nil {
-				h.options.PerformError(fmt.Errorf("unable to unmarshal request body: %w", err), r)
-				http.Error(w, "unable to unmarshal request body", http.StatusBadRequest)
-				return
-			}
-		}
+		close(completed)
 	}
 
 	var in interface{}
