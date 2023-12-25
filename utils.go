@@ -146,7 +146,7 @@ func valuesToStruct(values url.Values, target interface{}) (err error) {
 }
 
 // structToValues returns url.Values containing struct fields as values.
-// source must be struct or struct pointer or nil otherwise it panics.
+// source must be nil or struct or struct pointer otherwise it panics.
 func structToValues(source interface{}) (values url.Values, err error) {
 	values = make(url.Values)
 
