@@ -330,4 +330,8 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	do[len(do)-1](req, send)
+
+	if sent == 0 {
+		panic(errors.New("send must be called"))
+	}
 }
