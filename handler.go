@@ -183,6 +183,14 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			panic(errors.New("already sent"))
 		}
 
+		var data []byte
+		data, err = json.Marshal(out)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			panic(fmt.Errorf("unable to encode output: %w", err))
+		}
+		data = append(data, '\n')
+
 		var nopcw io.WriteCloser = nopCloserForWriter{w}
 		wc := nopcw
 		if h.options.AllowEncoding {
@@ -194,16 +202,18 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		var data []byte
-		data, err = json.Marshal(out)
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			panic(fmt.Errorf("unable to encode output: %w", err))
-		}
-		data = append(data, '\n')
-
 		for _, hdr := range headers {
 			for k, v := range hdr {
+				lk := strings.ToLower(k)
+				if lk == "accept" || strings.HasPrefix(lk, "accept-") {
+					continue
+				}
+				if lk == "content" || strings.HasPrefix(lk, "content-") {
+					continue
+				}
+				if lk == "transfer" || strings.HasPrefix(lk, "transfer-") {
+					continue
+				}
 				for _, v2 := range v {
 					w.Header().Add(k, v2)
 				}
@@ -212,8 +222,6 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if wc == nopcw {
 			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
-		} else {
-			w.Header().Del("Content-Length")
 		}
 		w.WriteHeader(code)
 		if r.Method == http.MethodHead {
