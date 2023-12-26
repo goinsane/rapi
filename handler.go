@@ -124,8 +124,6 @@ func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts
 		panic(fmt.Errorf("unable to copy input: %w", err))
 	}
 
-	method = strings.ToUpper(method)
-
 	switch method {
 	case "", http.MethodGet, http.MethodDelete:
 		if inVal.Elem().Kind() != reflect.Struct {
@@ -183,6 +181,14 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			panic(errors.New("already sent"))
 		}
 
+		var data []byte
+		data, err = json.Marshal(out)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			panic(fmt.Errorf("unable to encode output: %w", err))
+		}
+		data = append(data, '\n')
+
 		var nopcw io.WriteCloser = nopCloserForWriter{w}
 		wc := nopcw
 		if h.options.AllowEncoding {
@@ -194,15 +200,18 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		var data []byte
-		data, err = json.Marshal(out)
-		if err != nil {
-			panic(fmt.Errorf("unable to encode output: %w", err))
-		}
-		data = append(data, '\n')
-
 		for _, hdr := range headers {
 			for k, v := range hdr {
+				lk := strings.ToLower(k)
+				if lk == "accept" || strings.HasPrefix(lk, "accept-") {
+					continue
+				}
+				if lk == "content" || strings.HasPrefix(lk, "content-") {
+					continue
+				}
+				if lk == "transfer" || strings.HasPrefix(lk, "transfer-") {
+					continue
+				}
 				for _, v2 := range v {
 					w.Header().Add(k, v2)
 				}
@@ -211,8 +220,6 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if wc == nopcw {
 			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(data)), 10))
-		} else {
-			w.Header().Del("Content-Length")
 		}
 		w.WriteHeader(code)
 		if r.Method == http.MethodHead {
@@ -266,12 +273,14 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	inVal := reflect.ValueOf(h.in)
 	copiedInVal, err := copyReflectValue(inVal)
 	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(fmt.Errorf("unable to copy input: %w", err))
 	}
 
 	if contentType == "" &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet || r.Method == http.MethodDelete) {
 		if copiedInVal.Elem().Kind() != reflect.Struct {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			panic(errors.New("input must be struct or struct pointer"))
 		}
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
@@ -330,4 +339,9 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	do[len(do)-1](req, send)
+
+	if sent == 0 {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		panic(errors.New("send must be called"))
+	}
 }

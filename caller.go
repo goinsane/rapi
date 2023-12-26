@@ -160,8 +160,6 @@ func NewFactory(client *http.Client, u *url.URL, opts ...CallOption) (f *Factory
 
 // Caller creates a new Caller with the given endpoint and method.
 func (f *Factory) Caller(endpoint string, method string, out interface{}, opts ...CallOption) *Caller {
-	method = strings.ToUpper(method)
-
 	switch method {
 	case http.MethodHead, http.MethodGet, http.MethodDelete:
 	case http.MethodPost, http.MethodPut, http.MethodPatch:
