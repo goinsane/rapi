@@ -124,8 +124,6 @@ func (h *patternHandler) Register(method string, in interface{}, do DoFunc, opts
 		panic(fmt.Errorf("unable to copy input: %w", err))
 	}
 
-	method = strings.ToUpper(method)
-
 	switch method {
 	case "", http.MethodGet, http.MethodDelete:
 		if inVal.Elem().Kind() != reflect.Struct {
