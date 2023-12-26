@@ -197,6 +197,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var data []byte
 		data, err = json.Marshal(out)
 		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			panic(fmt.Errorf("unable to encode output: %w", err))
 		}
 		data = append(data, '\n')
@@ -266,12 +267,14 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	inVal := reflect.ValueOf(h.in)
 	copiedInVal, err := copyReflectValue(inVal)
 	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(fmt.Errorf("unable to copy input: %w", err))
 	}
 
 	if contentType == "" &&
 		(r.Method == http.MethodHead || r.Method == http.MethodGet || r.Method == http.MethodDelete) {
 		if copiedInVal.Elem().Kind() != reflect.Struct {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			panic(errors.New("input must be struct or struct pointer"))
 		}
 		err = valuesToStruct(r.URL.Query(), copiedInVal.Interface())
@@ -332,6 +335,7 @@ func (h *methodHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	do[len(do)-1](req, send)
 
 	if sent == 0 {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		panic(errors.New("send must be called"))
 	}
 }
